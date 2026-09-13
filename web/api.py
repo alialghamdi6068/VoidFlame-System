@@ -6,7 +6,7 @@ from web.security import protected_post
 ALLOWED_SETTINGS = {
     'welcome_channel_id', 'welcome_message', 'auto_role_id', 'log_channel_id',
     'ticket_category_id', 'ticket_panel_channel_id', 'ticket_log_channel_id', 'ticket_support_role_id',
-    'ticket_panel_title', 'ticket_panel_description', 'ticket_panel_footer',
+    'ticket_panel_title', 'ticket_panel_description',
     'applications_channel_id', 'applications_log_channel_id',
     'suggestions_channel_id', 'suggestions_log_channel_id',
     'level_channel_id', 'level_announce', 'levels_enabled', 'xp_min', 'xp_max', 'level_cooldown',
@@ -68,7 +68,6 @@ def _clean_ticket_buttons(value, guild):
             continue
         button = {
             'label': label,
-            'emoji': str(item.get('emoji') or '🎫').strip()[:20] or '🎫',
             'style': item.get('style') if item.get('style') in {'primary', 'secondary', 'success', 'danger'} else 'success'
         }
         for key in ('category_id', 'support_role_id'):
@@ -157,11 +156,12 @@ def register_api(app, bot):
                         return jsonify({'ok': False, 'error': 'العنصر المحدد غير موجود في هذا السيرفر.'}), 400
             elif key in BOOLEAN_SETTINGS:
                 value = bool(value)
-            elif key in {'welcome_message', 'ticket_panel_title', 'ticket_panel_description', 'ticket_panel_footer'}:
+            elif key in {'welcome_message', 'ticket_panel_title', 'ticket_panel_description'}:
                 value = str(value)
-                limits = {'welcome_message': 2000, 'ticket_panel_title': 256, 'ticket_panel_description': 4000, 'ticket_panel_footer': 200}
+                limits = {'welcome_message': 2000, 'ticket_panel_title': 256, 'ticket_panel_description': 4000}
                 value = value[:limits[key]]
             data[key] = value
 
+        data.pop('ticket_panel_footer', None)
         update_guild_data(guild_id, **data)
         return jsonify({'ok': True, 'settings': get_guild_data(guild_id)})
