@@ -29,7 +29,7 @@ class Maintenance(commands.Cog):
 
         if maintenance_mode:
             await ctx.reply(
-                "🔧 تم تفعيل وضع الصيانة. جميع أعمال وأنظمة البيانة متوقفة مؤقتًا.",
+                "🔧 تم تفعيل وضع الصيانة. جميع أعمال وأنظمة البوت متوقفة مؤقتًا.",
                 mention_author=False,
             )
         else:
