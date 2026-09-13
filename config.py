@@ -23,5 +23,12 @@ BOT_PREFIX = "!"
 BOT_NAME = "VoidFlame System"
 DASHBOARD_NAME = "VoidFlame System"
 
+# Optional Gemini AI protection layer.
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", os.getenv("AI_API_KEY", "")).strip()
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
+AI_TIMEOUT = max(5, min(int(os.getenv("AI_TIMEOUT", "15")), 60))
+AI_HIGH_CONFIDENCE = 0.90
+AI_LOW_CONFIDENCE = 0.50
+
 if not DISCORD_TOKEN:
-    raise RuntimeError("DISCORD_TOKEN is missing. Add it to the Wispbyte environment variables.")
+    raise RuntimeError("DISCORD_TOKEN is missing. Add it to the hosting environment variables.")
