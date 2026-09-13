@@ -12,44 +12,23 @@ from web.app import create_app
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
+intents.presences = True
 
 bot = commands.Bot(command_prefix=BOT_PREFIX, intents=intents, help_command=None)
 app = create_app(bot)
 
 MULTIWORD_ALIASES = {
-    '!اوامر الادارة': '!اوامر_الادارة',
-    '!فك تايم': '!فك_تايم',
-    '!فك ميوت': '!فك_تايم',
-    '!فك حظر': '!فك_حظر',
-    '!ريست لفل': '!ريست_لفل',
-    '!مسح تحذيرات': '!مسح_تحذيرات',
-    '!مسح رسائل': '!مسح',
-    '!قفل روم': '!قفل_روم',
-    '!فتح روم': '!فتح_روم',
-    '!انهاء قيفاواي': '!انهاء',
-    '!اعادة قيفاواي': '!اعادة',
-    '!قبول اقتراح': '!قبول_اقتراح',
-    '!رفض اقتراح': '!رفض_اقتراح',
-    '!حذف رد': '!حذف_رد',
-    '!رتبة تلقائية': '!رتبة_تلقائية',
-    '!قيفاواي روم': '!قيفاواي_روم',
-    '!قبول تقديم': '!قبول_تقديم',
-    '!رفض تقديم': '!رفض_تقديم',
-    '!اعطاء رتبة': '!اعطاء_رتبة',
-    '!سحب رتبة': '!سحب_رتبة',
-    '!اعلى دعوات': '!اعلى_دعوات',
-    '!رتب السيرفر': '!رتب_السيرفر',
-    '!اعضاء اونلاين': '!اعضاء_اونلاين',
-    '!احصائيات السيرفر': '!احصائيات_السيرفر',
-    '!سجل العضو': '!سجل_العضو',
-    '!عمر الحساب': '!عمر_الحساب',
-    '!عمر السيرفر': '!عمر_السيرفر',
-    '!اختصار الرابط': '!اختصار_الرابط',
-    '!وقت عالمي': '!وقت_عالمي',
-    '!مساعدة الأمر': '!مساعدة_الأمر',
-    '!حظر': '!باند',
-    '!ميوت': '!تايم',
-    '!بنق': '!بينج',
+    '!اوامر الادارة': '!اوامر_الادارة', '!فك تايم': '!فك_تايم', '!فك ميوت': '!فك_تايم',
+    '!فك حظر': '!فك_حظر', '!ريست لفل': '!ريست_لفل', '!مسح تحذيرات': '!مسح_تحذيرات',
+    '!مسح رسائل': '!مسح', '!قفل روم': '!قفل_روم', '!فتح روم': '!فتح_روم',
+    '!انهاء قيفاواي': '!انهاء', '!اعادة قيفاواي': '!اعادة', '!قبول اقتراح': '!قبول_اقتراح',
+    '!رفض اقتراح': '!رفض_اقتراح', '!حذف رد': '!حذف_رد', '!رتبة تلقائية': '!رتبة_تلقائية',
+    '!قيفاواي روم': '!قيفاواي_روم', '!قبول تقديم': '!قبول_تقديم', '!رفض تقديم': '!رفض_تقديم',
+    '!اعطاء رتبة': '!اعطاء_رتبة', '!سحب رتبة': '!سحب_رتبة', '!اعلى دعوات': '!اعلى_دعوات',
+    '!رتب السيرفر': '!رتب_السيرفر', '!اعضاء اونلاين': '!اعضاء_اونلاين',
+    '!احصائيات السيرفر': '!احصائيات_السيرفر', '!سجل العضو': '!سجل_العضو', '!عمر الحساب': '!عمر_الحساب',
+    '!عمر السيرفر': '!عمر_السيرفر', '!اختصار الرابط': '!اختصار_الرابط', '!وقت عالمي': '!وقت_عالمي',
+    '!مساعدة الأمر': '!مساعدة_الأمر', '!حظر': '!باند', '!ميوت': '!تايم', '!بنق': '!بينج',
 }
 
 
@@ -90,24 +69,18 @@ async def on_command_error(ctx, error):
     if isinstance(error, commands.BadArgument):
         return await ctx.reply('❌ تأكد من المنشن أو الرقم أو البيانات المدخلة.')
     print(f'[{BOT_NAME}] Command error: {type(error).__name__}: {error}')
-    try:
-        await ctx.reply('❌ صار خطأ أثناء تنفيذ الأمر.')
-    except discord.HTTPException:
-        pass
 
 
 async def load_cogs():
     cog_names = [
         'moderation', 'tickets', 'applications', 'levels', 'welcome', 'logs',
-        'giveaways', 'suggestions', 'afk', 'autoreply', 'autorole',
-        'announcements', 'reminders', 'scheduler', 'utility', 'owner',
-        'messaging', 'dashboard_commands', 'extra_commands', 'new_commands',
-        'warn_slash', 'multiword'
+        'giveaways', 'suggestions', 'afk', 'autoreply', 'autorole', 'announcements',
+        'reminders', 'scheduler', 'utility', 'owner', 'messaging', 'dashboard_commands',
+        'extra_commands', 'new_commands', 'warn_slash', 'multiword',
+        'protector_guard', 'ai_guard'
     ]
     for name in cog_names:
         try:
-            # extra_commands provides the preferred avatar slash command.
-            # Remove any older avatar registration first to avoid a duplicate.
             if name == 'extra_commands':
                 bot.tree.remove_command('avatar')
             await bot.load_extension(f'cogs.{name}')
