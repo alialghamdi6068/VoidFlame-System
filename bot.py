@@ -66,7 +66,7 @@ async def on_ready():
 
 @bot.tree.interaction_check
 async def maintenance_check(interaction: discord.Interaction):
-    if is_maintenance():
+    if is_maintenance() and interaction.command and interaction.command.name != 'maintenance':
         await interaction.response.send_message('🔧 البوت حاليًا في وضع الصيانة. الأوامر متوقفة مؤقتًا.', ephemeral=True)
         return False
     return True
