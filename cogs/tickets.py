@@ -4,11 +4,13 @@ from discord.ext import commands
 from database import get_guild_data, connection, log_activity
 
 
+TICKET_FOOTER = 'VoidFlame • System'
+
+
 class TicketPanelView(discord.ui.View):
     def __init__(self, cog, guild_id, buttons=None):
         super().__init__(timeout=None)
-        self.cog = cog
-        configs = buttons or [{'label': 'فتح تذكرة', 'emoji': '🎫', 'style': 'success'}]
+        configs = buttons or [{'label': '🎫 فتح تذكرة', 'style': 'success'}]
         for index, config in enumerate(configs[:5]):
             self.add_item(TicketPanelButton(cog, config, guild_id, index))
 
@@ -16,9 +18,8 @@ class TicketPanelView(discord.ui.View):
 class TicketPanelButton(discord.ui.Button):
     def __init__(self, cog, config, guild_id, index):
         styles = {'primary': discord.ButtonStyle.primary, 'secondary': discord.ButtonStyle.secondary, 'success': discord.ButtonStyle.success, 'danger': discord.ButtonStyle.danger}
-        label = str(config.get('label') or 'فتح تذكرة')[:80]
-        emoji = str(config.get('emoji') or '🎫')[:20]
-        super().__init__(label=label, style=styles.get(config.get('style'), discord.ButtonStyle.success), emoji=emoji, custom_id=f'flame_tp:{guild_id}:{index}')
+        label = str(config.get('label') or '🎫 فتح تذكرة')[:80]
+        super().__init__(label=label, style=styles.get(config.get('style'), discord.ButtonStyle.success), custom_id=f'flame_tp:{guild_id}:{index}')
         self.cog = cog
         self.config = config
 
@@ -166,6 +167,7 @@ class Tickets(commands.Cog):
         title = self.replace_variables(title, guild, user, ticket_id, category, support_role)[:256]
         description = self.replace_variables(description, guild, user, ticket_id, category, support_role)[:4000]
         embed = discord.Embed(title=title, description=description, color=discord.Color.blurple())
+        embed.set_footer(text=TICKET_FOOTER)
         await channel.send(content=user.mention, embed=embed, view=TicketView(self))
         await interaction.response.send_message(f'✅ تم فتح تذكرتك: {channel.mention}', ephemeral=True)
 
@@ -203,10 +205,8 @@ class Tickets(commands.Cog):
         if not isinstance(channel, discord.TextChannel):
             return await ctx.reply('❌ حدد **روم لوحة التذاكر** من الموقع أولاً، ثم استخدم `!تكت`.')
         embed = discord.Embed(title=str(settings.get('ticket_panel_title') or '🎫 نظام التذاكر')[:256], description=str(settings.get('ticket_panel_description') or 'تحتاج مساعدة؟ اختر القسم المناسب من الأزرار بالأسفل.')[:4000], color=discord.Color.blurple())
-        footer = str(settings.get('ticket_panel_footer') or 'Flame • Ticket System')[:2048]
-        if footer:
-            embed.set_footer(text=footer)
-        buttons = settings.get('ticket_buttons') or [{'label': 'فتح تذكرة', 'emoji': '🎫', 'style': 'success'}]
+        embed.set_footer(text=TICKET_FOOTER)
+        buttons = settings.get('ticket_buttons') or [{'label': '🎫 فتح تذكرة', 'style': 'success'}]
         await channel.send(embed=embed, view=TicketPanelView(self, ctx.guild.id, buttons))
         await ctx.reply(f'✅ تم إرسال لوحة التذاكر في {channel.mention}.')
 
@@ -247,7 +247,7 @@ class Tickets(commands.Cog):
             self.bot.add_view(TicketView(self))
             for guild in self.bot.guilds:
                 settings = get_guild_data(guild.id)
-                buttons = settings.get('ticket_buttons') or [{'label': 'فتح تذكرة', 'emoji': '🎫', 'style': 'success'}]
+                buttons = settings.get('ticket_buttons') or [{'label': '🎫 فتح تذكرة', 'style': 'success'}]
                 self.bot.add_view(TicketPanelView(self, guild.id, buttons))
             self.bot._flame_ticket_views_added = True
 
