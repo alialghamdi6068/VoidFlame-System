@@ -14,7 +14,7 @@ class Maintenance(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(name="صيانة")
+    @commands.command(name="maintenance")
     @commands.is_owner()
     async def maintenance(self, ctx):
         global maintenance_mode
