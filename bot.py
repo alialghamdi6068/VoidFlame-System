@@ -7,6 +7,7 @@ from discord.ext import commands
 from config import BOT_PREFIX, BOT_NAME, HOST, PORT, DISCORD_TOKEN
 from database import init_db
 from web.app import create_app
+from cogs.maintenance import is_maintenance
 
 
 intents = discord.Intents.default()
@@ -36,11 +37,18 @@ MULTIWORD_ALIASES = {
 async def on_message(message):
     if message.author.bot:
         return
+
+    original_content = message.content.strip()
     content = message.content
+
     for public_name, internal_name in sorted(MULTIWORD_ALIASES.items(), key=lambda item: len(item[0]), reverse=True):
         if content == public_name or content.startswith(public_name + ' '):
             message.content = internal_name + content[len(public_name):]
             break
+
+    if is_maintenance() and original_content != '!صيانة':
+        return
+
     await bot.process_commands(message)
 
 
@@ -54,6 +62,14 @@ async def on_ready():
         print(f'[{BOT_NAME}] Synced {len(synced)} slash commands.')
     except Exception as exc:
         print(f'[{BOT_NAME}] Slash sync failed: {type(exc).__name__}: {exc}')
+
+
+@bot.tree.interaction_check
+async def maintenance_check(interaction: discord.Interaction):
+    if is_maintenance():
+        await interaction.response.send_message('🔧 البوت حاليًا في وضع الصيانة. الأوامر متوقفة مؤقتًا.', ephemeral=True)
+        return False
+    return True
 
 
 @bot.event
@@ -77,7 +93,7 @@ async def load_cogs():
         'giveaways', 'suggestions', 'afk', 'autoreply', 'autorole', 'announcements',
         'reminders', 'scheduler', 'utility', 'owner', 'messaging', 'dashboard_commands',
         'extra_commands', 'new_commands', 'warn_slash', 'multiword',
-        'protector_guard', 'ai_guard'
+        'protector_guard', 'ai_guard', 'maintenance'
     ]
     for name in cog_names:
         try:
