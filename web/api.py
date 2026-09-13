@@ -14,6 +14,13 @@ ALLOWED_SETTINGS = {
     'scheduler_channel_id', 'reminder_channel_id', 'afk_channel_id'
 }
 
+SYSTEM_ENABLED_SETTINGS = {
+    'welcome_enabled', 'tickets_enabled', 'applications_enabled', 'levels_enabled',
+    'autoreply_enabled', 'giveaways_enabled', 'suggestions_enabled', 'logs_enabled',
+    'autorole_enabled', 'announcements_enabled', 'reminders_enabled', 'scheduler_enabled',
+    'afk_enabled'
+}
+
 INTEGER_SETTINGS = {
     'welcome_channel_id', 'auto_role_id', 'log_channel_id', 'ticket_category_id',
     'ticket_panel_channel_id', 'ticket_log_channel_id', 'ticket_support_role_id',
@@ -24,7 +31,7 @@ INTEGER_SETTINGS = {
     'xp_min', 'xp_max', 'level_cooldown'
 }
 
-BOOLEAN_SETTINGS = {'level_announce', 'levels_enabled'}
+BOOLEAN_SETTINGS = {'level_announce', 'levels_enabled'} | SYSTEM_ENABLED_SETTINGS
 
 
 def _get_bot_guild(bot, guild_id):
@@ -105,6 +112,16 @@ def _clean_level_rewards(value, guild):
 
 
 def register_api(app, bot):
+    @app.get('/api/guild/<int:guild_id>/settings')
+    @logged_in
+    def get_settings(guild_id):
+        guild = _get_bot_guild(bot, guild_id)
+        if guild is None:
+            return jsonify({'ok': False, 'error': 'السيرفر غير موجود أو البوت غير متصل به.'}), 404
+        if not can_manage_guild(guild):
+            return jsonify({'ok': False, 'error': 'غير مصرح لك بإدارة هذا السيرفر.'}), 403
+        return jsonify({'ok': True, 'settings': get_guild_data(guild_id)})
+
     @app.post('/api/guild/<int:guild_id>/settings')
     @logged_in
     @protected_post
@@ -140,7 +157,7 @@ def register_api(app, bot):
         if 'level_rewards' in payload:
             data['level_rewards'] = _clean_level_rewards(payload.get('level_rewards'), guild)
 
-        for key in ALLOWED_SETTINGS:
+        for key in ALLOWED_SETTINGS | SYSTEM_ENABLED_SETTINGS:
             if key not in payload:
                 continue
             value = payload[key]
