@@ -8,18 +8,20 @@ from config import BOT_NAME
 
 
 class DashboardCommands(commands.Cog):
-    """The public/admin slash-command set shown in the dashboard design."""
+    """Public/admin dashboard commands."""
 
     def __init__(self, bot):
         self.bot = bot
 
+    @commands.command(name='داشبورد')
+    @commands.guild_only()
+    @commands.has_guild_permissions(manage_guild=True)
+    async def dashboard_prefix(self, ctx):
+        await ctx.reply('🌐 **لوحة التحكم:**\nhttps://voidflame.wisp.uno/', mention_author=False)
+
     @app_commands.command(name='info', description='Show information about the bot')
     async def info(self, interaction: discord.Interaction):
-        embed = discord.Embed(
-            title=f'🤖 {BOT_NAME}',
-            description='بوت إدارة Discord مع أنظمة متكاملة ولوحة تحكم.',
-            color=discord.Color.blurple(),
-        )
+        embed = discord.Embed(title=f'🤖 {BOT_NAME}', description='بوت إدارة Discord مع أنظمة متكاملة ولوحة تحكم.', color=discord.Color.blurple())
         embed.add_field(name='السيرفرات', value=str(len(self.bot.guilds)))
         embed.add_field(name='Ping', value=f'{round(self.bot.latency * 1000)}ms')
         embed.add_field(name='الأوامر', value=f'{len(self.bot.tree.get_commands())} Slash')
@@ -44,14 +46,8 @@ class DashboardCommands(commands.Cog):
     @app_commands.guild_only()
     @app_commands.checks.has_permissions(manage_guild=True)
     async def setup_command(self, interaction: discord.Interaction):
-        dashboard_url = os.getenv('DASHBOARD_URL', '').strip()
-        if dashboard_url:
-            return await interaction.response.send_message(
-                f'⚙️ افتح لوحة التحكم لإعداد السيرفر:\n{dashboard_url}', ephemeral=True
-            )
-        await interaction.response.send_message(
-            '⚙️ استخدم لوحة التحكم الخاصة بالمشروع لإعداد الرومات والأنظمة.', ephemeral=True
-        )
+        dashboard_url = os.getenv('DASHBOARD_URL', '').strip() or 'https://voidflame.wisp.uno/'
+        await interaction.response.send_message(f'⚙️ افتح لوحة التحكم لإعداد السيرفر:\n{dashboard_url}', ephemeral=True)
 
     @app_commands.command(name='sync', description='Synchronize slash commands')
     @app_commands.checks.has_permissions(administrator=True)
@@ -64,12 +60,7 @@ class DashboardCommands(commands.Cog):
     @app_commands.checks.has_permissions(administrator=True)
     async def reload(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
-        names = [
-            'moderation', 'tickets', 'applications', 'levels', 'welcome', 'logs',
-            'giveaways', 'suggestions', 'afk', 'autoreply', 'autorole',
-            'announcements', 'reminders', 'scheduler', 'utility', 'owner',
-            'messaging', 'dashboard_commands'
-        ]
+        names = ['moderation', 'tickets', 'applications', 'levels', 'welcome', 'logs', 'giveaways', 'suggestions', 'afk', 'autoreply', 'autorole', 'announcements', 'reminders', 'scheduler', 'utility', 'owner', 'messaging', 'dashboard_commands']
         failed = []
         for name in names:
             extension = f'cogs.{name}'
