@@ -7,6 +7,15 @@ from discord.ext import commands
 from config import BOT_NAME
 
 
+COG_NAMES = [
+    'moderation', 'tickets', 'applications', 'levels', 'welcome', 'logs',
+    'giveaways', 'suggestions', 'afk', 'autoreply', 'autorole', 'announcements',
+    'reminders', 'scheduler', 'utility', 'owner', 'messaging', 'dashboard_commands',
+    'extra_commands', 'new_commands', 'warn_slash', 'multiword',
+    'protector_guard', 'ai_guard', 'maintenance'
+]
+
+
 class DashboardCommands(commands.Cog):
     """Public/admin dashboard commands."""
 
@@ -17,7 +26,8 @@ class DashboardCommands(commands.Cog):
     @commands.guild_only()
     @commands.has_guild_permissions(manage_guild=True)
     async def dashboard_prefix(self, ctx):
-        await ctx.reply('🌐 **لوحة التحكم:**\nhttps://voidflame.wisp.uno/', mention_author=False)
+        dashboard_url = os.getenv('DASHBOARD_URL', '').strip() or 'https://voidflame.wisp.uno/'
+        await ctx.reply(f'🌐 **لوحة التحكم:**\n{dashboard_url}', mention_author=False)
 
     @app_commands.command(name='info', description='Show information about the bot')
     async def info(self, interaction: discord.Interaction):
@@ -60,9 +70,8 @@ class DashboardCommands(commands.Cog):
     @app_commands.checks.has_permissions(administrator=True)
     async def reload(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
-        names = ['moderation', 'tickets', 'applications', 'levels', 'welcome', 'logs', 'giveaways', 'suggestions', 'afk', 'autoreply', 'autorole', 'announcements', 'reminders', 'scheduler', 'utility', 'owner', 'messaging', 'dashboard_commands']
         failed = []
-        for name in names:
+        for name in COG_NAMES:
             extension = f'cogs.{name}'
             try:
                 if extension in self.bot.extensions:
@@ -70,10 +79,10 @@ class DashboardCommands(commands.Cog):
                 else:
                     await self.bot.load_extension(extension)
             except Exception as exc:
-                failed.append(f'{name}: {type(exc).__name__}')
+                failed.append(f'{name}: {type(exc).__name__}: {exc}')
         if failed:
             return await interaction.followup.send('⚠️ تمت إعادة التحميل مع أخطاء:\n' + '\n'.join(failed), ephemeral=True)
-        await interaction.followup.send(f'✅ تمت إعادة تحميل **{len(names)}** ملف.', ephemeral=True)
+        await interaction.followup.send(f'✅ تمت إعادة تحميل **{len(COG_NAMES)}** ملف.', ephemeral=True)
 
     @app_commands.command(name='reboot', description='Restart the bot process')
     @app_commands.checks.has_permissions(administrator=True)
