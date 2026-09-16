@@ -106,6 +106,16 @@ async def load_cogs():
             if name == 'extra_commands':
                 bot.tree.remove_command('avatar')
             await bot.load_extension(f'cogs.{name}')
+
+            # ProtectorGuard used to create its own log/alert channels on startup.
+            # Keep the protection and logging features, but never create channels automatically.
+            if name == 'protector_guard':
+                protector = bot.get_cog('ProtectorGuard')
+                if protector:
+                    async def _disabled_channel_setup(guild):
+                        return None
+                    protector.ensure_security_channels = _disabled_channel_setup
+
             print(f'[{BOT_NAME}] Loaded cogs.{name}')
         except commands.ExtensionNotFound:
             print(f'[{BOT_NAME}] Missing cogs.{name}; skipped.')
