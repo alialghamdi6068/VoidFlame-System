@@ -3,25 +3,37 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="VoidFlame System — لوحة تحكم احترافية لإدارة بوتات Discord وسيرفرات Discord بسهولة وأمان.">
-<meta name="keywords" content="VoidFlame System, VoidFlame, Discord Bot, Discord Dashboard, بوت ديسكورد, لوحة تحكم ديسكورد">
-<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
+<meta name="description" content="VoidFlame System — منصة احترافية لإدارة بوتات وسيرفرات Discord.">
 <meta name="theme-color" content="#0b0714">
 <meta property="og:type" content="website">
 <meta property="og:title" content="VoidFlame System | Discord Bot">
-<meta property="og:description" content="لوحة تحكم احترافية وآمنة لإدارة بوتات وسيرفرات Discord.">
-<meta property="og:site_name" content="VoidFlame System">
-<meta name="twitter:card" content="summary">
+<meta property="og:description" content="تحكم كامل بسيرفرك من لوحة واحدة.">
 <title>VoidFlame System | Discord Bot</title>
-<link rel="canonical" href="{{ request.url_root }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body class="landing">
-<main class="hero">
-<div class="logo">🔥</div>
-<h1>VoidFlame System</h1>
-<p>لوحة تحكم احترافية وآمنة لإدارة بوتات وسيرفرات Discord بسهولة.</p>
-<a class="button" href="{{ url_for('login') }}">تسجيل الدخول عبر Discord</a>
+<body class="landing-page">
+<header class="landing-nav">
+  <a class="brand" href="{{ url_for('home') }}"><span>🔥</span> VoidFlame</a>
+  <a class="nav-login" href="{{ url_for('login') }}">تسجيل الدخول</a>
+</header>
+<main>
+  <section class="landing-hero">
+    <div class="hero-badge">● منصة إدارة Discord</div>
+    <h1>تحكم كامل بسيرفرك<br><span>من مكان واحد.</span></h1>
+    <p>VoidFlame يوفر لك لوحة تحكم احترافية لإدارة أنظمة السيرفر، التذاكر، الترحيب، المستويات، الحماية والمزيد بسهولة.</p>
+    <div class="hero-actions">
+      <a class="button hero-button" href="{{ url_for('login') }}">ابدأ الآن <span>←</span></a>
+      <a class="hero-secondary" href="#features">اكتشف المميزات</a>
+    </div>
+    <div class="hero-trust"><span>✓</span> آمن عبر Discord OAuth2 <span>•</span> <span>✓</span> بدون مشاركة كلمة المرور</div>
+  </section>
+  <section id="features" class="landing-features">
+    <div class="feature-card"><div class="feature-icon">⚙</div><h3>لوحة تحكم متكاملة</h3><p>إدارة إعدادات السيرفر وأنظمة البوت من واجهة واحدة.</p></div>
+    <div class="feature-card"><div class="feature-icon">🎫</div><h3>نظام تذاكر احترافي</h3><p>أنشئ أقسام التذاكر وحدد قنوات الدعم والرتب بسهولة.</p></div>
+    <div class="feature-card"><div class="feature-icon">🛡</div><h3>حماية وإدارة</h3><p>أدوات إدارة وحماية تساعدك على تشغيل مجتمعك بشكل أفضل.</p></div>
+    <div class="feature-card"><div class="feature-icon">📊</div><h3>إحصائيات ونشاط</h3><p>تابع نشاط السيرفر والمستويات من داخل لوحة التحكم.</p></div>
+  </section>
 </main>
+<footer class="landing-footer">VoidFlame System · Discord Management Platform</footer>
 </body>
 </html>
