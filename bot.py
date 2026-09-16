@@ -84,7 +84,13 @@ async def on_command_error(ctx, error):
         return await ctx.reply(f'❌ ناقصك المتغير: `{error.param.name}`.')
     if isinstance(error, commands.BadArgument):
         return await ctx.reply('❌ تأكد من المنشن أو الرقم أو البيانات المدخلة.')
-    print(f'[{BOT_NAME}] Command error: {type(error).__name__}: {error}')
+
+    original = getattr(error, 'original', error)
+    print(f'[{BOT_NAME}] Command error: {type(original).__name__}: {original}')
+    try:
+        await ctx.reply('❌ حدث خطأ أثناء تنفيذ الأمر. تم تسجيل الخطأ في السجل.', mention_author=False)
+    except discord.HTTPException:
+        pass
 
 
 async def load_cogs():
