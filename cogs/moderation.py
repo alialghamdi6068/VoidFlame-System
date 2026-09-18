@@ -255,6 +255,30 @@ class Moderation(commands.Cog):
         log_activity(ctx.guild.id, 'clear_warnings', str(member), member.id)
         await ctx.reply(f'🧹 تم مسح تحذيرات {member.mention}.')
 
+    @commands.command(name='حذف_تحذير')
+    @commands.guild_only()
+    @commands.has_permissions(moderate_members=True)
+    async def remove_warning_prefix(self, ctx, warning_id: int):
+        with connection() as conn:
+            row = conn.execute('SELECT * FROM warnings WHERE id=? AND guild_id=?', (warning_id, ctx.guild.id)).fetchone()
+            if not row:
+                return await ctx.reply('❌ ما لقيت تحذير بهذا الرقم.')
+            conn.execute('DELETE FROM warnings WHERE id=? AND guild_id=?', (warning_id, ctx.guild.id))
+        log_activity(ctx.guild.id, 'warning_remove', f'Warning #{warning_id} | User {row["user_id"]}', ctx.author.id)
+        await ctx.reply(f'✅ تم حذف التحذير **#{warning_id}** من <@{row["user_id"]}>.')
+
+    @app_commands.command(name='remove-warning', description='Remove a warning by ID')
+    @app_commands.guild_only()
+    @app_commands.checks.has_permissions(moderate_members=True)
+    async def remove_warning_slash(self, interaction: discord.Interaction, warning_id: int):
+        with connection() as conn:
+            row = conn.execute('SELECT * FROM warnings WHERE id=? AND guild_id=?', (warning_id, interaction.guild.id)).fetchone()
+            if not row:
+                return await interaction.response.send_message('❌ ما لقيت تحذير بهذا الرقم.', ephemeral=True)
+            conn.execute('DELETE FROM warnings WHERE id=? AND guild_id=?', (warning_id, interaction.guild.id))
+        log_activity(interaction.guild.id, 'warning_remove', f'Warning #{warning_id} | User {row["user_id"]}', interaction.user.id)
+        await interaction.response.send_message(f'✅ تم حذف التحذير **#{warning_id}** من <@{row["user_id"]}>.')
+
     @commands.command(name='مسح')
     @commands.guild_only()
     @commands.has_permissions(manage_messages=True)
