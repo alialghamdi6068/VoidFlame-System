@@ -55,6 +55,12 @@
     <section class="panel"><h2>🎉 إعدادات القيفاواي</h2><div class="form-grid"><label>روم القيفاواي<select name="giveaways_channel_id"><option value="">روم الأمر</option>{% for c in channels %}<option value="{{c.id}}" {% if settings.get('giveaways_channel_id')|string == c.id|string %}selected{% endif %}># {{c.name}}</option>{% endfor %}</select></label></div></section>
     {% elif current_system == 'suggestions' %}
     <section class="panel"><h2>💡 إعدادات الاقتراحات</h2><div class="form-grid"><label>روم الاقتراحات<select name="suggestions_channel_id"><option value="">بدون</option>{% for c in channels %}<option value="{{c.id}}" {% if settings.get('suggestions_channel_id')|string == c.id|string %}selected{% endif %}># {{c.name}}</option>{% endfor %}</select></label><label>روم لوق الاقتراحات<select name="suggestions_log_channel_id"><option value="">بدون</option>{% for c in channels %}<option value="{{c.id}}" {% if settings.get('suggestions_log_channel_id')|string == c.id|string %}selected{% endif %}># {{c.name}}</option>{% endfor %}</select></label></div></section>
+    {% elif current_system == 'warnings' %}
+    <section class="panel"><h2>⚠️ نظام التحذيرات</h2><p>تحكم برسالة الخاص التي تصل للعضو عند تحذيره.</p><div class="form-grid">
+      <label class="check"><input type="checkbox" name="warn_dm_enabled" {% if settings.get('warn_dm_enabled', True) %}checked{% endif %}> إرسال التحذير في الخاص</label>
+      <label class="wide">رسالة التحذير<textarea name="warn_dm_message" rows="8">{{settings.get('warn_dm_message','تم تحذيرك في سيرفر {server}.\\n\\nالسبب: {reason}\\nرقم التحذير: #{count}\\nبواسطة: {moderator}')}}</textarea></label>
+    </div></section>
+    <section class="panel"><h3>المتغيرات</h3><p><code>{user}</code> اسم العضو — <code>{server}</code> السيرفر — <code>{reason}</code> السبب — <code>{count}</code> رقم التحذير — <code>{moderator}</code> الإداري.</p></section>
     {% elif current_system == 'logs' %}
     <section class="panel"><h2>📋 إعدادات اللوق</h2><div class="form-grid"><label>روم اللوق<select name="log_channel_id"><option value="">بدون</option>{% for c in channels %}<option value="{{c.id}}" {% if settings.get('log_channel_id')|string == c.id|string %}selected{% endif %}># {{c.name}}</option>{% endfor %}</select></label></div></section>
     {% elif current_system == 'autorole' %}
