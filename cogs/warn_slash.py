@@ -2,7 +2,7 @@ import re
 import discord
 from discord import app_commands
 from discord.ext import commands
-from database import connection, log_activity
+from database import connection, log_activity, get_guild_data
 
 
 class WarnSlash(commands.Cog):
@@ -13,19 +13,18 @@ class WarnSlash(commands.Cog):
         with connection() as conn:
             conn.execute('INSERT INTO warnings(guild_id,user_id,moderator_id,reason) VALUES(?,?,?,?)', (guild.id, member.id, moderator.id, reason))
             count = conn.execute('SELECT COUNT(*) AS c FROM warnings WHERE guild_id=? AND user_id=?', (guild.id, member.id)).fetchone()['c']
-        embed = discord.Embed(title='⚠️ تم تحذيرك', color=discord.Color.orange())
-        embed.description = f'تم تسجيل تحذير على حسابك في سيرفر **{guild.name}**.'
-        embed.add_field(name='السبب', value=reason[:1024], inline=False)
-        embed.add_field(name='بواسطة', value=moderator.mention, inline=True)
-        embed.add_field(name='رقم التحذير', value=f'#{count}', inline=True)
-        embed.set_footer(text=f'{guild.name} • نظام الإدارة')
-        dm = True
-        try:
-            await member.send(embed=embed)
-        except (discord.Forbidden, discord.HTTPException):
-            dm = False
-        log_activity(guild.id, 'warn', f'{member} | {reason}', member.id)
-        return count, dm
+        settings = get_guild_data(guild.id)
+        dm_sent = False
+        if settings.get('warn_dm_enabled', True):
+            template = str(settings.get('warn_dm_message', 'تم تحذيرك في سيرفر {server}.\\n\\nالسبب: {reason}\\nرقم التحذير: #{count}\\nبواسطة: {moderator}'))[:2000]
+            text = template.replace('{user}', str(member)).replace('{server}', guild.name).replace('{reason}', reason).replace('{count}', str(count)).replace('{moderator}', str(moderator))
+            try:
+                await member.send(text)
+                dm_sent = True
+            except (discord.Forbidden, discord.HTTPException):
+                pass
+        log_activity(guild.id, 'warn', f'{member} | {reason} | DM={dm_sent}', member.id)
+        return count, dm_sent
 
     @app_commands.command(name='warn', description='Warn a member or everyone with a role')
     @app_commands.guild_only()
