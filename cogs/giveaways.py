@@ -29,6 +29,8 @@ class Giveaways(commands.Cog):
 
     async def create_giveaway(self, guild, channel, author, duration, winners, prize):
         settings = get_guild_data(guild.id)
+        if settings.get('giveaways_enabled', True) is False:
+            raise RuntimeError('Giveaways disabled')
         configured = guild.get_channel(int(settings['giveaways_channel_id'])) if settings.get('giveaways_channel_id') else None
         if isinstance(configured, discord.TextChannel):
             channel = configured
