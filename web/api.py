@@ -10,7 +10,8 @@ ALLOWED_SETTINGS = {
     'ticket_panel_title', 'ticket_panel_description',
     'applications_channel_id', 'applications_log_channel_id',
     'suggestions_channel_id', 'suggestions_log_channel_id',
-    'level_channel_id', 'level_announce', 'levels_enabled', 'xp_min', 'xp_max', 'level_cooldown', 'ai_min_score', 'ai_medium_score', 'ai_high_score', 'ai_timeout_minutes', 'ai_repeat_threshold',
+    'level_channel_id', 'level_announce', 'levels_enabled', 'xp_min', 'xp_max', 'level_cooldown', 'log_rate_limit', 'spam_window_seconds', 'spam_message_limit', 'mention_limit', 'raid_window_seconds', 'raid_join_threshold', 'raid_timeout_minutes', 'mass_change_window_seconds', 'mass_change_threshold', 'protection_timeout_minutes', 'ai_min_score', 'ai_medium_score', 'ai_high_score', 'ai_timeout_minutes', 'ai_repeat_threshold',
+    'log_rate_limit', 'spam_window_seconds', 'spam_message_limit', 'mention_limit', 'raid_window_seconds', 'raid_join_threshold', 'raid_timeout_minutes', 'mass_change_window_seconds', 'mass_change_threshold', 'protection_timeout_minutes',
     'giveaways_channel_id', 'autoreply_channel_id', 'announcements_channel_id',
     'scheduler_channel_id', 'reminder_channel_id', 'afk_channel_id'
 }
@@ -32,7 +33,7 @@ INTEGER_SETTINGS = {
     'xp_min', 'xp_max', 'level_cooldown'
 }
 
-BOOLEAN_SETTINGS = {'level_announce', 'levels_enabled', 'warn_dm_enabled', 'ai_enabled'} | SYSTEM_ENABLED_SETTINGS
+BOOLEAN_SETTINGS = {'level_announce', 'levels_enabled', 'warn_dm_enabled', 'ai_enabled', 'protection_enabled', 'anti_raid_enabled', 'mass_change_protection'} | SYSTEM_ENABLED_SETTINGS
 
 
 def _get_bot_guild(bot, guild_id):
@@ -174,7 +175,7 @@ def register_api(app, bot):
                         return jsonify({'ok': False, 'error': 'العنصر المحدد غير موجود في هذا السيرفر.'}), 400
             elif key in BOOLEAN_SETTINGS:
                 value = bool(value)
-            elif key in {'ai_ignore_channels', 'ai_ignore_roles', 'disabled_log_events'}:
+            elif key in {'ai_ignore_channels', 'ai_ignore_roles', 'disabled_log_events', 'protection_ignore_channels', 'protection_ignore_roles'}:
                 if not isinstance(value, list):
                     return jsonify({'ok': False, 'error': f'القيمة غير صحيحة: {key}'}), 400
                 value = [str(x)[:30] for x in value[:100]]
@@ -184,6 +185,17 @@ def register_api(app, bot):
                 value = value[:limits[key]]
             data[key] = value
 
+        if 'warning_escalation' in payload:
+            rules = payload.get('warning_escalation')
+            if not isinstance(rules, dict):
+                return jsonify({'ok': False, 'error': 'إعدادات تصعيد التحذيرات غير صحيحة.'}), 400
+            clean = {}
+            for level, rule in list(rules.items())[:10]:
+                if str(level).isdigit() and isinstance(rule, dict):
+                    action = rule.get('action', 'warning')
+                    if action in {'warning', 'timeout', 'kick'}:
+                        clean[str(max(1, min(10, int(level))))] = {'action': action, 'minutes': max(1, min(40320, int(rule.get('minutes', 10))))}
+            data['warning_escalation'] = clean
         data.pop('ticket_panel_footer', None)
         update_guild_data(guild_id, **data)
         settings_cache.invalidate(guild_id)
