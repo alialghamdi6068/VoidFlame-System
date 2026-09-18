@@ -3,7 +3,7 @@ import datetime
 import discord
 from discord import app_commands
 from discord.ext import commands
-from database import connection, log_activity
+from database import connection, log_activity, get_guild_data
 
 
 def reason_text(reason: str | None) -> str:
@@ -228,8 +228,18 @@ class Moderation(commands.Cog):
         with connection() as conn:
             conn.execute('INSERT INTO warnings(guild_id,user_id,moderator_id,reason) VALUES(?,?,?,?)', (ctx.guild.id, member.id, ctx.author.id, reason))
             count = conn.execute('SELECT COUNT(*) AS c FROM warnings WHERE guild_id=? AND user_id=?', (ctx.guild.id, member.id)).fetchone()['c']
-        log_activity(ctx.guild.id, 'warn', f'{member} | {reason}', member.id)
-        await ctx.reply(f'⚠️ تم تحذير {member.mention}. مجموع التحذيرات: **{count}**.')
+        settings = get_guild_data(ctx.guild.id)
+        dm_sent = False
+        if settings.get('warn_dm_enabled', True):
+            template = str(settings.get('warn_dm_message', 'تم تحذيرك في سيرفر {server}.\\n\\nالسبب: {reason}\\nرقم التحذير: #{count}\\nبواسطة: {moderator}'))[:2000]
+            text = template.replace('{user}', str(member)).replace('{server}', ctx.guild.name).replace('{reason}', reason).replace('{count}', str(count)).replace('{moderator}', str(ctx.author))
+            try:
+                await member.send(text)
+                dm_sent = True
+            except (discord.Forbidden, discord.HTTPException):
+                pass
+        log_activity(ctx.guild.id, 'warn', f'{member} | {reason} | DM={dm_sent}', member.id)
+        await ctx.reply(f'⚠️ تم تحذير {member.mention}. مجموع التحذيرات: **{count}**. 📩 {"تم إرسال الخاص" if dm_sent else "الخاص غير متاح"}.')
 
     @app_commands.command(name='warn', description='Warn a member')
     @app_commands.guild_only()
@@ -239,8 +249,18 @@ class Moderation(commands.Cog):
         with connection() as conn:
             conn.execute('INSERT INTO warnings(guild_id,user_id,moderator_id,reason) VALUES(?,?,?,?)', (interaction.guild.id, member.id, interaction.user.id, reason))
             count = conn.execute('SELECT COUNT(*) AS c FROM warnings WHERE guild_id=? AND user_id=?', (interaction.guild.id, member.id)).fetchone()['c']
-        log_activity(interaction.guild.id, 'warn', f'{member} | {reason}', member.id)
-        await interaction.response.send_message(f'⚠️ تم تحذير {member.mention}. مجموع التحذيرات: **{count}**.')
+        settings = get_guild_data(interaction.guild.id)
+        dm_sent = False
+        if settings.get('warn_dm_enabled', True):
+            template = str(settings.get('warn_dm_message', 'تم تحذيرك في سيرفر {server}.\\n\\nالسبب: {reason}\\nرقم التحذير: #{count}\\nبواسطة: {moderator}'))[:2000]
+            text = template.replace('{user}', str(member)).replace('{server}', interaction.guild.name).replace('{reason}', reason).replace('{count}', str(count)).replace('{moderator}', str(interaction.user))
+            try:
+                await member.send(text)
+                dm_sent = True
+            except (discord.Forbidden, discord.HTTPException):
+                pass
+        log_activity(interaction.guild.id, 'warn', f'{member} | {reason} | DM={dm_sent}', member.id)
+        await interaction.response.send_message(f'⚠️ تم تحذير {member.mention}. مجموع التحذيرات: **{count}**. 📩 {"تم إرسال الخاص" if dm_sent else "الخاص غير متاح"}.')
 
     @commands.command(name='تحذيرات')
     @commands.guild_only()

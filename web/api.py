@@ -31,7 +31,7 @@ INTEGER_SETTINGS = {
     'xp_min', 'xp_max', 'level_cooldown'
 }
 
-BOOLEAN_SETTINGS = {'level_announce', 'levels_enabled'} | SYSTEM_ENABLED_SETTINGS
+BOOLEAN_SETTINGS = {'level_announce', 'levels_enabled', 'warn_dm_enabled'} | SYSTEM_ENABLED_SETTINGS
 
 
 def _get_bot_guild(bot, guild_id):
@@ -173,9 +173,9 @@ def register_api(app, bot):
                         return jsonify({'ok': False, 'error': 'العنصر المحدد غير موجود في هذا السيرفر.'}), 400
             elif key in BOOLEAN_SETTINGS:
                 value = bool(value)
-            elif key in {'welcome_message', 'ticket_panel_title', 'ticket_panel_description'}:
+            elif key in {'welcome_message', 'ticket_panel_title', 'ticket_panel_description', 'warn_dm_message'}:
                 value = str(value)
-                limits = {'welcome_message': 2000, 'ticket_panel_title': 256, 'ticket_panel_description': 4000}
+                limits = {'welcome_message': 2000, 'ticket_panel_title': 256, 'ticket_panel_description': 4000, 'warn_dm_message': 2000}
                 value = value[:limits[key]]
             data[key] = value
 
