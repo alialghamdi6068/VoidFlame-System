@@ -92,8 +92,6 @@ class Giveaways(commands.Cog):
     async def giveaway_prefix(self, ctx, duration: str, winners: int, *, prize: str):
         if get_guild_data(ctx.guild.id).get('giveaways_enabled', True) is False:
             return await ctx.reply('❌ نظام القيفاواي متوقف حاليًا.')
-        if get_guild_data(interaction.guild.id).get('giveaways_enabled', True) is False:
-            return await interaction.response.send_message('❌ نظام القيفاواي متوقف حاليًا.', ephemeral=True)
         try:
             seconds = parse_duration(duration)
         except ValueError:
@@ -109,6 +107,8 @@ class Giveaways(commands.Cog):
     @app_commands.guild_only()
     @app_commands.checks.has_permissions(manage_guild=True)
     async def giveaway_slash(self, interaction, duration: str, winners: app_commands.Range[int, 1, 50], prize: str):
+        if get_guild_data(interaction.guild.id).get('giveaways_enabled', True) is False:
+            return await interaction.response.send_message('❌ نظام القيفاواي متوقف حاليًا.', ephemeral=True)
         try:
             seconds = parse_duration(duration)
         except ValueError:
