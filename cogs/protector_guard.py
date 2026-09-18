@@ -117,6 +117,10 @@ class ProtectorGuard(commands.Cog):
             return
         if not settings.get("mass_change_protection", True):
             return
+        if action_key == "channel_update" and not settings.get("permission_change_protection", True):
+            return
+        if action_key == "role_update" and not settings.get("permission_change_protection", True):
+            return
         q = self.actions[(guild.id, action_key)]
         now = time.monotonic()
         q.append(now)
