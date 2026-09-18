@@ -40,6 +40,8 @@ class Giveaways(commands.Cog):
         with connection() as conn:
             conn.execute('INSERT INTO giveaways(guild_id,channel_id,message_id,prize,winners,ends_at) VALUES(?,?,?,?,?,?)', (guild.id, channel.id, message.id, prize, winners, ends_at))
         log_activity(guild.id, 'giveaway_create', f'{prize} | {winners}', author.id)
+        logs=self.bot.get_cog('Logs')
+        if logs: await logs.send_log(guild, 'Giveaway Create', f'Prize: {prize}\nWinners: {winners}\nChannel: {channel.mention}', actor=author, color=discord.Color.blurple())
         return message
 
     async def finish(self, row, reroll=False):
@@ -63,6 +65,8 @@ class Giveaways(commands.Cog):
         winners = random.sample(users, min(row['winners'], len(users)))
         mentions = ', '.join(user.mention for user in winners)
         await channel.send(f'🎉 مبروك {mentions}! فزتوا بـ **{row["prize"]}**!')
+        logs=self.bot.get_cog('Logs')
+        if logs: await logs.send_log(guild, 'Giveaway Finished', f'Prize: {row["prize"]}\nWinners: {mentions}', color=discord.Color.green())
         return winners
 
     @tasks.loop(seconds=5)
