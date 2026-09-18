@@ -18,6 +18,8 @@ class Announcements(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(manage_messages=True)
     async def announcement(self, ctx, *, text: str):
+        if get_guild_data(ctx.guild.id).get('announcements_enabled', True) is False:
+            return await ctx.reply('❌ نظام الإعلانات متوقف حاليًا.')
         channel = await self.target_channel(ctx.guild, ctx.channel)
         embed = discord.Embed(title='📢 إعلان', description=text[:4000], color=discord.Color.blurple())
         embed.set_footer(text=f'بواسطة {ctx.author}')
@@ -28,6 +30,8 @@ class Announcements(commands.Cog):
     @app_commands.command(name='announcement', description='Send an announcement')
     @app_commands.checks.has_permissions(manage_messages=True)
     async def announcement_slash(self, interaction: discord.Interaction, text: str):
+        if get_guild_data(interaction.guild.id).get('announcements_enabled', True) is False:
+            return await interaction.response.send_message('❌ نظام الإعلانات متوقف حاليًا.', ephemeral=True)
         channel = await self.target_channel(interaction.guild, interaction.channel)
         embed = discord.Embed(title='📢 إعلان', description=text[:4000], color=discord.Color.blurple())
         embed.set_footer(text=f'بواسطة {interaction.user}')
