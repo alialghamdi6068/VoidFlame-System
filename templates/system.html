@@ -64,15 +64,35 @@
       <label>مدة التايم بالدقائق<input type="number" name="ai_timeout_minutes" min="1" max="40320" value="{{settings.get('ai_timeout_minutes',10)}}"></label>
       <label>عدد التكرارات للتصعيد<input type="number" name="ai_repeat_threshold" min="2" max="12" value="{{settings.get('ai_repeat_threshold',3)}}"></label>
     </div></section>
-    <section class="panel"><h3>آلية العمل</h3><p>0–39: تجاهل. الدرجة المتوسطة: تحذير. الدرجة العالية: Timeout إذا كانت صلاحيات البوت تسمح. تكرار المخالفة يضاعف مدة الـ Timeout ضمن الحد المسموح.</p></section>
+    <section class="panel"><h3>🛡️ حماية السيرفر</h3><div class="form-grid">
+      <label class="check"><input type="checkbox" name="protection_enabled" {% if settings.get('protection_enabled',True) %}checked{% endif %}> Anti-Spam</label>
+      <label class="check"><input type="checkbox" name="anti_raid_enabled" {% if settings.get('anti_raid_enabled',True) %}checked{% endif %}> Anti-Raid</label>
+      <label class="check"><input type="checkbox" name="mass_change_protection" {% if settings.get('mass_change_protection',True) %}checked{% endif %}> حماية إنشاء/حذف الرومات والرتب</label>
+      <label>رسائل السبام<input type="number" name="spam_message_limit" min="3" max="30" value="{{settings.get('spam_message_limit',7)}}"></label>
+      <label>نافذة السبام بالثواني<input type="number" name="spam_window_seconds" min="2" max="60" value="{{settings.get('spam_window_seconds',8)}}"></label>
+      <label>حد المنشن<input type="number" name="mention_limit" min="3" max="30" value="{{settings.get('mention_limit',5)}}"></label>
+      <label>عدد دخول Anti-Raid<input type="number" name="raid_join_threshold" min="3" max="50" value="{{settings.get('raid_join_threshold',8)}}"></label>
+      <label>نافذة Anti-Raid بالثواني<input type="number" name="raid_window_seconds" min="5" max="120" value="{{settings.get('raid_window_seconds',20)}}"></label>
+      <label>مدة حماية Anti-Raid<input type="number" name="raid_timeout_minutes" min="1" max="1440" value="{{settings.get('raid_timeout_minutes',10)}}"></label>
+      <label>حد تغييرات الرومات/الرتب<input type="number" name="mass_change_threshold" min="3" max="30" value="{{settings.get('mass_change_threshold',5)}}"></label>
+      <label>مدة تايم الحماية<input type="number" name="protection_timeout_minutes" min="1" max="40320" value="{{settings.get('protection_timeout_minutes',10)}}"></label>
+    </div><p>الحماية محلية داخل البوت ولا تعتمد على API خارجي. عند عدم توفر صلاحية البوت، يسجل الحدث بدل كسر البوت.</p></section>
     {% elif current_system == 'warnings' %}
     <section class="panel"><h2>⚠️ نظام التحذيرات</h2><p>تحكم برسالة الخاص التي تصل للعضو عند تحذيره.</p><div class="form-grid">
       <label class="check"><input type="checkbox" name="warn_dm_enabled" {% if settings.get('warn_dm_enabled', True) %}checked{% endif %}> إرسال التحذير في الخاص</label>
       <label class="wide">رسالة التحذير<textarea name="warn_dm_message" rows="8">{{settings.get('warn_dm_message','تم تحذيرك في سيرفر {server}.\\n\\nالسبب: {reason}\\nرقم التحذير: #{count}\\nبواسطة: {moderator}')}}</textarea></label>
     </div></section>
+    <section class="panel"><h3>⚠️ تصعيد التحذيرات</h3><p>تقدر تحدد إجراء إضافي عند وصول العضو لرقم تحذير معين. اترك الرقم بدون قاعدة إذا ما تبي إجراء.</p><div class="form-grid">
+      {% set escalation = settings.get('warning_escalation', {'2': {'action':'timeout','minutes':5}, '3': {'action':'timeout','minutes':15}, '4': {'action':'timeout','minutes':60}, '5': {'action':'timeout','minutes':180}}) %}
+      {% for level in range(2,6) %}{% set rule = escalation.get(level|string, {}) %}<label>التحذير {{level}} — الإجراء<select data-warning-level="{{level}}" class="warning-action"><option value="warning" {% if rule.get('action')=='warning' %}selected{% endif %}>تحذير فقط</option><option value="timeout" {% if rule.get('action','timeout')=='timeout' %}selected{% endif %}>Timeout</option><option value="kick" {% if rule.get('action')=='kick' %}selected{% endif %}>Kick</option></select></label><label>المدة (دقيقة)<input type="number" data-warning-minutes="{{level}}" class="warning-minutes" value="{{rule.get('minutes',10)}}" min="1" max="40320"></label>{% endfor %}
+    </div></section>
     <section class="panel"><h3>المتغيرات</h3><p><code>{user}</code> اسم العضو — <code>{server}</code> السيرفر — <code>{reason}</code> السبب — <code>{count}</code> رقم التحذير — <code>{moderator}</code> الإداري.</p></section>
     {% elif current_system == 'logs' %}
-    <section class="panel"><h2>📋 إعدادات اللوق</h2><div class="form-grid"><label>روم اللوق<select name="log_channel_id"><option value="">بدون</option>{% for c in channels %}<option value="{{c.id}}" {% if settings.get('log_channel_id')|string == c.id|string %}selected{% endif %}># {{c.name}}</option>{% endfor %}</select></label></div></section>
+    <section class="panel"><h2>📋 اللوق الموحد</h2><p>كل أحداث البوت تذهب إلى <b>روم واحد فقط</b>. لا تحتاج إنشاء روم مستقل لكل نظام.</p><div class="form-grid">
+      <label>روم اللوق<select name="log_channel_id"><option value="">بدون</option>{% for c in channels %}<option value="{{c.id}}" {% if settings.get('log_channel_id')|string == c.id|string %}selected{% endif %}># {{c.name}}</option>{% endfor %}</select></label>
+      <label>حد اللوق خلال 5 ثوانٍ<input type="number" name="log_rate_limit" min="5" max="50" value="{{settings.get('log_rate_limit',12)}}"></label>
+      <label class="check"><input type="checkbox" name="logs_enabled" {% if settings.get('logs_enabled',True) %}checked{% endif %}> تفعيل اللوق</label>
+    </div><p>يشمل: الأعضاء، الرتب، الرومات، الرسائل، الصوت، السيرفر، الأوامر، التحذيرات، الحماية، التذاكر، القيفاواي، الاقتراحات والتقديمات.</p></section>
     {% elif current_system == 'autorole' %}
     <section class="panel"><h2>🏷️ إعدادات الرتبة التلقائية</h2><div class="form-grid"><label>الرتبة<select name="auto_role_id"><option value="">بدون</option>{% for r in roles|sort(attribute='position', reverse=true) %}{% if not r.is_default() %}<option value="{{r.id}}" {% if settings.get('auto_role_id')|string == r.id|string %}selected{% endif %}>@{{r.name}}</option>{% endif %}{% endfor %}</select></label></div></section>
     {% elif current_system == 'announcements' %}
