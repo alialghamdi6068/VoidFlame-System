@@ -146,9 +146,17 @@ class Tickets(commands.Cog):
             return await interaction.response.send_message('❌ تعذر إنشاء التذكرة.', ephemeral=True)
         try:
             with connection() as conn:
-                cursor = conn.execute('INSERT INTO tickets(guild_id,channel_id,user_id) VALUES(?,?,?)', (guild.id, channel.id, user.id))
-                ticket_id = cursor.lastrowid
-            await channel.edit(name=f'ticket-{ticket_id:04d}', reason='Set ticket number')
+                conn.execute('BEGIN IMMEDIATE')
+                next_number = conn.execute(
+                    'SELECT COALESCE(MAX(ticket_number), 0) + 1 FROM tickets WHERE guild_id=?',
+                    (guild.id,)
+                ).fetchone()[0]
+                cursor = conn.execute(
+                    'INSERT INTO tickets(guild_id,channel_id,user_id,ticket_number) VALUES(?,?,?,?)',
+                    (guild.id, channel.id, user.id, next_number)
+                )
+                ticket_id = next_number
+            await channel.edit(name=f'ticket-{ticket_id:04d}', reason='Set guild ticket number')
         except Exception:
             try:
                 await channel.delete(reason='Ticket database creation failed')
