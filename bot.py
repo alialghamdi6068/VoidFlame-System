@@ -101,7 +101,7 @@ async def load_cogs():
         'giveaways', 'suggestions', 'afk', 'autoreply', 'autorole', 'announcements',
         'reminders', 'scheduler', 'utility', 'owner', 'messaging', 'dashboard_commands',
         'extra_commands', 'new_commands', 'warn_slash', 'multiword',
-        'ai_guard', 'event_logger', 'maintenance'
+        'ai_guard', 'event_logger', 'protector_guard', 'maintenance'
     ]
     for name in cog_names:
         try:
