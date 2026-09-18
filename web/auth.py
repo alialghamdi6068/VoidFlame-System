@@ -36,7 +36,7 @@ def register_auth(app, bot):
     def login():
         rate_limit('login')
         if not DISCORD_CLIENT_ID or not DISCORD_CLIENT_SECRET or not DISCORD_REDIRECT_URI:
-            return render_template('error.html', title='تعذر تسجيل الدخول', message='تسجيل الدخول غير متاح حاليًا. يرجى المحاولة لاحقًا.'), 503
+            return render_template('error.html'), 500
         state = secrets.token_urlsafe(32)
         session.clear()
         session['oauth_state'] = state
@@ -51,25 +51,25 @@ def register_auth(app, bot):
         state = request.args.get('state', '')
         expected = session.get('oauth_state')
         if not state or not expected or not secrets.compare_digest(state, str(expected)):
-            return render_template('error.html', title='خطأ في تسجيل الدخول', message='تعذر إكمال جلسة تسجيل الدخول. حاول مرة أخرى.'), 400
+            return render_template('error.html'), 500
         code = request.args.get('code', '')
         if not code or len(code) > 2048:
             session.clear()
-            return render_template('error.html', title='تم إلغاء الدخول', message='لم يتم إكمال تسجيل الدخول إلى Discord.'), 400
+            return render_template('error.html'), 500
         try:
             response = requests.post(f'{DISCORD_API}/oauth2/token', data={'client_id': DISCORD_CLIENT_ID, 'client_secret': DISCORD_CLIENT_SECRET, 'grant_type': 'authorization_code', 'code': code, 'redirect_uri': DISCORD_REDIRECT_URI}, timeout=15)
             if response.status_code != 200:
                 session.clear()
-                return render_template('error.html', title='فشل تسجيل الدخول', message='تعذر تسجيل الدخول عبر Discord. تأكد من إعدادات التطبيق وحاول مرة أخرى.'), 502
+                return render_template('error.html'), 500
             token = response.json()
             access_token = token.get('access_token')
             if not isinstance(access_token, str) or not access_token:
                 session.clear()
-                return render_template('error.html', title='فشل تسجيل الدخول', message='تعذر إكمال تسجيل الدخول عبر Discord.'), 502
+                return render_template('error.html'), 500
             user_response = requests.get(f'{DISCORD_API}/users/@me', headers={'Authorization': f'Bearer {access_token}'}, timeout=15)
             if user_response.status_code != 200:
                 session.clear()
-                return render_template('error.html', title='فشل تسجيل الدخول', message='تعذر جلب بيانات حساب Discord.'), 502
+                return render_template('error.html'), 500
             guilds = _managed_guilds_from_token(access_token)
             user = user_response.json()
             session.clear()
@@ -80,7 +80,7 @@ def register_auth(app, bot):
             return redirect(url_for('servers'))
         except (requests.RequestException, ValueError, TypeError):
             session.clear()
-            return render_template('error.html', title='فشل الاتصال', message='تعذر الاتصال بخوادم Discord. حاول مرة أخرى.'), 502
+            return render_template('error.html'), 500
 
     @app.post('/logout')
     def logout():
