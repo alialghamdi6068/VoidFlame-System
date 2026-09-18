@@ -73,6 +73,8 @@ class Welcome(commands.Cog):
     @commands.Cog.listener()
     async def on_member_join(self, member):
         settings = get_guild_data(member.guild.id)
+        if settings.get('welcome_enabled', True) is False:
+            return
         inviter = await self.get_inviter(member.guild)
         channel_id = settings.get('welcome_channel_id')
         if channel_id:
