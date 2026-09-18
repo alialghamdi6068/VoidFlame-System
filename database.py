@@ -5,6 +5,7 @@ from config import DATABASE_PATH
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS guild_settings (guild_id INTEGER PRIMARY KEY, data TEXT NOT NULL DEFAULT '{}');
+CREATE TABLE IF NOT EXISTS global_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '');
 CREATE TABLE IF NOT EXISTS warnings (id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id INTEGER NOT NULL, user_id INTEGER NOT NULL, moderator_id INTEGER NOT NULL, reason TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE IF NOT EXISTS levels (guild_id INTEGER NOT NULL, user_id INTEGER NOT NULL, xp INTEGER NOT NULL DEFAULT 0, level INTEGER NOT NULL DEFAULT 0, last_message REAL NOT NULL DEFAULT 0, PRIMARY KEY(guild_id,user_id));
 CREATE TABLE IF NOT EXISTS afk (guild_id INTEGER NOT NULL, user_id INTEGER NOT NULL, reason TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(guild_id,user_id));
@@ -43,3 +44,18 @@ def log_activity(guild_id,action,details="",user_id=None):
     with connection() as conn:
         conn.execute("INSERT INTO activity(guild_id,user_id,action,details) VALUES(?,?,?,?)",(guild_id,user_id,action,details))
 init_db()
+
+
+def get_global_setting(key, default=None):
+    with connection() as conn:
+        row = conn.execute("SELECT value FROM global_settings WHERE key=?", (str(key),)).fetchone()
+        if not row:
+            return default
+        return row["value"]
+
+def set_global_setting(key, value):
+    with connection() as conn:
+        conn.execute(
+            "INSERT INTO global_settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            (str(key), str(value)),
+        )
