@@ -55,6 +55,16 @@
     <section class="panel"><h2>🎉 إعدادات القيفاواي</h2><div class="form-grid"><label>روم القيفاواي<select name="giveaways_channel_id"><option value="">روم الأمر</option>{% for c in channels %}<option value="{{c.id}}" {% if settings.get('giveaways_channel_id')|string == c.id|string %}selected{% endif %}># {{c.name}}</option>{% endfor %}</select></label></div></section>
     {% elif current_system == 'suggestions' %}
     <section class="panel"><h2>💡 إعدادات الاقتراحات</h2><div class="form-grid"><label>روم الاقتراحات<select name="suggestions_channel_id"><option value="">بدون</option>{% for c in channels %}<option value="{{c.id}}" {% if settings.get('suggestions_channel_id')|string == c.id|string %}selected{% endif %}># {{c.name}}</option>{% endfor %}</select></label><label>روم لوق الاقتراحات<select name="suggestions_log_channel_id"><option value="">بدون</option>{% for c in channels %}<option value="{{c.id}}" {% if settings.get('suggestions_log_channel_id')|string == c.id|string %}selected{% endif %}># {{c.name}}</option>{% endfor %}</select></label></div></section>
+    {% elif current_system == 'ai' %}
+    <section class="panel"><h2>🛡️ الحماية الذكية</h2><p>محرك محلي يعمل داخل البوت بدون API خارجي. يراقب الأنماط الخطرة ويصعّد الإجراء حسب الدرجة والتكرار.</p><div class="form-grid">
+      <label class="check"><input type="checkbox" name="ai_enabled" {% if settings.get('ai_enabled',True) %}checked{% endif %}> تفعيل الحماية الذكية</label>
+      <label>بداية الفحص<input type="number" name="ai_min_score" min="0" max="100" value="{{settings.get('ai_min_score',40)}}"></label>
+      <label>درجة التحذير<input type="number" name="ai_medium_score" min="1" max="100" value="{{settings.get('ai_medium_score',40)}}"></label>
+      <label>درجة التايم<input type="number" name="ai_high_score" min="1" max="100" value="{{settings.get('ai_high_score',70)}}"></label>
+      <label>مدة التايم بالدقائق<input type="number" name="ai_timeout_minutes" min="1" max="40320" value="{{settings.get('ai_timeout_minutes',10)}}"></label>
+      <label>عدد التكرارات للتصعيد<input type="number" name="ai_repeat_threshold" min="2" max="12" value="{{settings.get('ai_repeat_threshold',3)}}"></label>
+    </div></section>
+    <section class="panel"><h3>آلية العمل</h3><p>0–39: تجاهل. الدرجة المتوسطة: تحذير. الدرجة العالية: Timeout إذا كانت صلاحيات البوت تسمح. تكرار المخالفة يضاعف مدة الـ Timeout ضمن الحد المسموح.</p></section>
     {% elif current_system == 'warnings' %}
     <section class="panel"><h2>⚠️ نظام التحذيرات</h2><p>تحكم برسالة الخاص التي تصل للعضو عند تحذيره.</p><div class="form-grid">
       <label class="check"><input type="checkbox" name="warn_dm_enabled" {% if settings.get('warn_dm_enabled', True) %}checked{% endif %}> إرسال التحذير في الخاص</label>

@@ -9,7 +9,7 @@ ALLOWED_SETTINGS = {
     'ticket_panel_title', 'ticket_panel_description',
     'applications_channel_id', 'applications_log_channel_id',
     'suggestions_channel_id', 'suggestions_log_channel_id',
-    'level_channel_id', 'level_announce', 'levels_enabled', 'xp_min', 'xp_max', 'level_cooldown',
+    'level_channel_id', 'level_announce', 'levels_enabled', 'xp_min', 'xp_max', 'level_cooldown', 'ai_min_score', 'ai_medium_score', 'ai_high_score', 'ai_timeout_minutes', 'ai_repeat_threshold',
     'giveaways_channel_id', 'autoreply_channel_id', 'announcements_channel_id',
     'scheduler_channel_id', 'reminder_channel_id', 'afk_channel_id'
 }
@@ -31,7 +31,7 @@ INTEGER_SETTINGS = {
     'xp_min', 'xp_max', 'level_cooldown'
 }
 
-BOOLEAN_SETTINGS = {'level_announce', 'levels_enabled', 'warn_dm_enabled'} | SYSTEM_ENABLED_SETTINGS
+BOOLEAN_SETTINGS = {'level_announce', 'levels_enabled', 'warn_dm_enabled', 'ai_enabled'} | SYSTEM_ENABLED_SETTINGS
 
 
 def _get_bot_guild(bot, guild_id):
@@ -173,7 +173,7 @@ def register_api(app, bot):
                         return jsonify({'ok': False, 'error': 'العنصر المحدد غير موجود في هذا السيرفر.'}), 400
             elif key in BOOLEAN_SETTINGS:
                 value = bool(value)
-            elif key in {'welcome_message', 'ticket_panel_title', 'ticket_panel_description', 'warn_dm_message'}:
+            elif key in {'ai_ignore_channels', 'ai_ignore_roles', 'disabled_log_events'}:\n                if not isinstance(value, list):\n                    return jsonify({'ok': False, 'error': f'القيمة غير صحيحة: {key}'}), 400\n                value = [str(x)[:30] for x in value[:100]]\n            elif key in {'welcome_message', 'ticket_panel_title', 'ticket_panel_description', 'warn_dm_message'}:
                 value = str(value)
                 limits = {'welcome_message': 2000, 'ticket_panel_title': 256, 'ticket_panel_description': 4000, 'warn_dm_message': 2000}
                 value = value[:limits[key]]
