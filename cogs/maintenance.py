@@ -1,46 +1,74 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
+from config import OWNER_ID
 
-OWNER_ID = 1293157778030071920
 maintenance_mode = False
-
 
 def is_maintenance() -> bool:
     return maintenance_mode
 
-
 class Maintenance(commands.Cog):
-    """Global maintenance switch. Only the bot owner can control it."""
-
+    """Global maintenance switch. Unloads every system cog except this cog."""
     def __init__(self, bot):
         self.bot = bot
 
+    async def _sync(self):
+        try:
+            await self.bot.tree.sync()
+        except Exception as exc:
+            print(f"[VoidFlame] Slash sync failed: {type(exc).__name__}: {exc}")
+
+    async def _disable_all_systems(self):
+        unloaded = []
+        for name in list(getattr(self.bot, "system_extensions", [])):
+            if name == "maintenance":
+                continue
+            if name in self.bot.extensions:
+                try:
+                    await self.bot.unload_extension(name)
+                    unloaded.append(name)
+                except Exception as exc:
+                    print(f"[VoidFlame] Could not unload {name}: {type(exc).__name__}: {exc}")
+        await self._sync()
+        return unloaded
+
+    async def _enable_all_systems(self):
+        loaded = []
+        for name in getattr(self.bot, "system_extensions", []):
+            if name == "maintenance" or name in self.bot.extensions:
+                continue
+            try:
+                await self.bot.load_extension(name)
+                loaded.append(name)
+            except Exception as exc:
+                print(f"[VoidFlame] Could not reload {name}: {type(exc).__name__}: {exc}")
+        await self._sync()
+        return loaded
+
     @commands.command(name="صيانة")
+    @commands.guild_only()
     async def maintenance_prefix(self, ctx):
         await self._toggle(ctx.author.id, lambda text: ctx.reply(text, mention_author=False))
 
-    @app_commands.command(name="maintenance", description="Toggle bot maintenance mode")
+    @app_commands.command(name="maintenance", description="Toggle global bot maintenance mode")
     async def maintenance_slash(self, interaction: discord.Interaction):
-        async def reply(text):
-            await interaction.response.send_message(text)
-
-        await self._toggle(interaction.user.id, reply)
+        await self._toggle(interaction.user.id, lambda text: interaction.response.send_message(text, ephemeral=True))
 
     async def _toggle(self, user_id, reply):
         global maintenance_mode
-
-        if user_id != OWNER_ID:
-            await reply("❌ لا يستطيع استخدام هذا الأمر إلا <@1293157778030071920>.")
+        if int(user_id) != OWNER_ID:
+            await reply("❌ هذا الأمر للمالك فقط.")
             return
-
         maintenance_mode = not maintenance_mode
-
         if maintenance_mode:
-            await reply("🔧 تم تفعيل وضع الصيانة. جميع أعمال وأنظمة البوت متوقفة مؤقتًا.")
+            unloaded = await self._disable_all_systems()
+            await reply(f"🔧 تم تفعيل الصيانة العامة. تم إيقاف {len(unloaded)} نظامًا في كل السيرفرات.
+👤 المالك الوحيد المسموح له: <@{OWNER_ID}>
+استخدم !صيانة مرة ثانية لإرجاع كل الأنظمة.")
         else:
-            await reply("✅ تم إنهاء وضع الصيانة. جميع أعمال وأنظمة البوت تعمل الآن.")
-
+            loaded = await self._enable_all_systems()
+            await reply(f"✅ تم إنهاء الصيانة العامة. تم تشغيل {len(loaded)} نظامًا من جديد في كل السيرفرات.")
 
 async def setup(bot):
     await bot.add_cog(Maintenance(bot))

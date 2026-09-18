@@ -17,6 +17,14 @@ intents.members = True
 intents.presences = True
 
 bot = commands.Bot(command_prefix=BOT_PREFIX, intents=intents, help_command=None)
+
+SYSTEM_COGS = [
+    'moderation', 'tickets', 'applications', 'levels', 'welcome', 'logs', 'giveaways', 'suggestions',
+    'afk', 'autoreply', 'autorole', 'announcements', 'reminders', 'scheduler', 'utility', 'owner',
+    'messaging', 'dashboard_commands', 'extra_commands', 'new_commands', 'warn_slash', 'multiword',
+    'ai_guard', 'event_logger', 'protector_guard'
+]
+bot.system_extensions = [f'cogs.{name}' for name in SYSTEM_COGS] + ['maintenance']
 app = create_app(bot)
 
 MULTIWORD_ALIASES = {
@@ -96,13 +104,7 @@ async def on_command_error(ctx, error):
 
 
 async def load_cogs():
-    cog_names = [
-        'moderation', 'tickets', 'applications', 'levels', 'welcome', 'logs',
-        'giveaways', 'suggestions', 'afk', 'autoreply', 'autorole', 'announcements',
-        'reminders', 'scheduler', 'utility', 'owner', 'messaging', 'dashboard_commands',
-        'extra_commands', 'new_commands', 'warn_slash', 'multiword',
-        'ai_guard', 'event_logger', 'protector_guard', 'maintenance'
-    ]
+    cog_names = SYSTEM_COGS + ['maintenance']
     for name in cog_names:
         try:
             if name == 'extra_commands':
