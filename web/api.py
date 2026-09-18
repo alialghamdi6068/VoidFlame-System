@@ -2,6 +2,7 @@ from flask import request, jsonify
 from database import get_guild_data, update_guild_data
 from web.dashboard import logged_in, can_manage_guild
 from web.security import protected_post
+from services.settings_cache import settings_cache
 
 ALLOWED_SETTINGS = {
     'welcome_channel_id', 'welcome_message', 'auto_role_id', 'log_channel_id',
@@ -185,4 +186,5 @@ def register_api(app, bot):
 
         data.pop('ticket_panel_footer', None)
         update_guild_data(guild_id, **data)
+        settings_cache.invalidate(guild_id)
         return jsonify({'ok': True, 'settings': get_guild_data(guild_id)})

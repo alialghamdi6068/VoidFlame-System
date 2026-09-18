@@ -6,6 +6,7 @@ from discord.ext import commands
 
 from config import BOT_PREFIX, BOT_NAME, HOST, PORT, DISCORD_TOKEN
 from database import init_db
+from services.settings_cache import settings_cache
 from web.app import create_app
 from cogs.maintenance import is_maintenance
 
@@ -54,6 +55,7 @@ async def on_message(message):
 
 @bot.event
 async def on_ready():
+    settings_cache.clear()
     print(f'[{BOT_NAME}] Logged in as {bot.user} | Guilds: {len(bot.guilds)}')
     for guild in bot.guilds:
         print(f'[{BOT_NAME}] Guild: {guild.name} ({guild.id})')
