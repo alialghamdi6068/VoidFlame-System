@@ -47,6 +47,8 @@ class Suggestions(commands.Cog):
             await message.edit(embed=embed)
         await ctx.reply('✅ تم تحديث حالة الاقتراح.')
         log_activity(ctx.guild.id, 'suggestion_review', f'#{suggestion_id} -> {status}', ctx.author.id)
+        logs=self.bot.get_cog('Logs')
+        if logs: await logs.send_log(ctx.guild, 'Suggestion Review', f'#{suggestion_id} -> {status}', actor=ctx.author, color=discord.Color.green() if status=='accepted' else discord.Color.red())
 
     @commands.command(name='اقتراح')
     @commands.guild_only()
