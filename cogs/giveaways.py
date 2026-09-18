@@ -30,7 +30,7 @@ class Giveaways(commands.Cog):
     async def create_giveaway(self, guild, channel, author, duration, winners, prize):
         settings = get_guild_data(guild.id)
         if settings.get('giveaways_enabled', True) is False:
-            raise RuntimeError('Giveaways disabled')
+            return False
         configured = guild.get_channel(int(settings['giveaways_channel_id'])) if settings.get('giveaways_channel_id') else None
         if isinstance(configured, discord.TextChannel):
             channel = configured
@@ -75,9 +75,11 @@ class Giveaways(commands.Cog):
     async def finish_loop(self):
         with connection() as conn:
             rows = conn.execute('SELECT * FROM giveaways WHERE ended=0 AND ends_at<=?', (time.time(),)).fetchall()
-            for row in rows:
-                conn.execute('UPDATE giveaways SET ended=1 WHERE id=?', (row['id'],))
         for row in rows:
+            if get_guild_data(row['guild_id']).get('giveaways_enabled', True) is False:
+                continue
+            with connection() as conn:
+                conn.execute('UPDATE giveaways SET ended=1 WHERE id=?', (row['id'],))
             await self.finish(row)
 
     @finish_loop.before_loop
@@ -88,13 +90,19 @@ class Giveaways(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
     async def giveaway_prefix(self, ctx, duration: str, winners: int, *, prize: str):
+        if get_guild_data(ctx.guild.id).get('giveaways_enabled', True) is False:
+            return await ctx.reply('❌ نظام القيفاواي متوقف حاليًا.')
+        if get_guild_data(interaction.guild.id).get('giveaways_enabled', True) is False:
+            return await interaction.response.send_message('❌ نظام القيفاواي متوقف حاليًا.', ephemeral=True)
         try:
             seconds = parse_duration(duration)
         except ValueError:
             return await ctx.reply('❌ المدة غير صحيحة. استخدم `10m` أو `2h` أو `1d`.')
         if not 1 <= winners <= 50:
             return await ctx.reply('❌ عدد الفائزين يجب أن يكون بين 1 و50.')
-        await self.create_giveaway(ctx.guild, ctx.channel, ctx.author, seconds, winners, prize[:200])
+        created = await self.create_giveaway(ctx.guild, ctx.channel, ctx.author, seconds, winners, prize[:200])
+        if created is False:
+            return await ctx.reply('❌ نظام القيفاواي متوقف حاليًا.')
         await ctx.reply('✅ تم إنشاء القيفاواي.', delete_after=5)
 
     @app_commands.command(name='giveaway', description='Create a giveaway')
@@ -105,7 +113,9 @@ class Giveaways(commands.Cog):
             seconds = parse_duration(duration)
         except ValueError:
             return await interaction.response.send_message('❌ المدة غير صحيحة. استخدم 10m أو 2h أو 1d.', ephemeral=True)
-        await self.create_giveaway(interaction.guild, interaction.channel, interaction.user, seconds, winners, prize[:200])
+        created = await self.create_giveaway(interaction.guild, interaction.channel, interaction.user, seconds, winners, prize[:200])
+        if created is False:
+            return await interaction.response.send_message('❌ نظام القيفاواي متوقف حاليًا.', ephemeral=True)
         await interaction.response.send_message('✅ تم إنشاء القيفاواي.', ephemeral=True)
 
     @commands.command(name='انهاء')
