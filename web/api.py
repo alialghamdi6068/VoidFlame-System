@@ -9,7 +9,7 @@ ALLOWED_SETTINGS = {
     'ticket_panel_title', 'ticket_panel_description',
     'applications_channel_id', 'applications_log_channel_id',
     'suggestions_channel_id', 'suggestions_log_channel_id',
-    'level_channel_id', 'level_announce', 'levels_enabled', 'xp_min', 'xp_max', 'level_cooldown',
+    'level_channel_id', 'level_announce', 'levels_enabled', 'xp_min', 'xp_max', 'level_cooldown', 'ai_min_score', 'ai_medium_score', 'ai_high_score', 'ai_timeout_minutes', 'ai_repeat_threshold',
     'giveaways_channel_id', 'autoreply_channel_id', 'announcements_channel_id',
     'scheduler_channel_id', 'reminder_channel_id', 'afk_channel_id'
 }
@@ -31,7 +31,7 @@ INTEGER_SETTINGS = {
     'xp_min', 'xp_max', 'level_cooldown'
 }
 
-BOOLEAN_SETTINGS = {'level_announce', 'levels_enabled', 'warn_dm_enabled'} | SYSTEM_ENABLED_SETTINGS
+BOOLEAN_SETTINGS = {'level_announce', 'levels_enabled', 'warn_dm_enabled', 'ai_enabled'} | SYSTEM_ENABLED_SETTINGS
 
 
 def _get_bot_guild(bot, guild_id):
