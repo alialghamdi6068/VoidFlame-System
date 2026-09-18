@@ -2,7 +2,7 @@ import re
 import time
 import discord
 from discord.ext import commands, tasks
-from database import connection, log_activity
+from database import connection, log_activity, get_guild_data
 
 DURATION_RE = re.compile(r'^(\d+)([smhd])$', re.I)
 
@@ -22,6 +22,8 @@ class Reminders(commands.Cog):
             rows=conn.execute('SELECT * FROM reminders WHERE sent=0 AND due_at<=?',(time.time(),)).fetchall()
             for row in rows: conn.execute('UPDATE reminders SET sent=1 WHERE id=?',(row['id'],))
         for row in rows:
+            if get_guild_data(row['guild_id']).get('reminders_enabled', True) is False:
+                continue
             user=self.bot.get_user(row['user_id'])
             if not user:
                 try: user=await self.bot.fetch_user(row['user_id'])
