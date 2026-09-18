@@ -33,7 +33,7 @@ INTEGER_SETTINGS = {
     'xp_min', 'xp_max', 'level_cooldown', 'ai_action_cooldown_seconds', 'mass_change_action'
 }
 
-BOOLEAN_SETTINGS = {'level_announce', 'levels_enabled', 'warn_dm_enabled', 'ai_enabled', 'protection_enabled', 'anti_raid_enabled', 'mass_change_protection'} | SYSTEM_ENABLED_SETTINGS
+BOOLEAN_SETTINGS = {'level_announce', 'levels_enabled', 'warn_dm_enabled', 'ai_enabled', 'protection_enabled', 'anti_raid_enabled', 'mass_change_protection', 'mass_change_lockdown', 'webhook_protection', 'permission_change_protection', 'guild_update_protection'} | SYSTEM_ENABLED_SETTINGS
 
 
 def _get_bot_guild(bot, guild_id):
