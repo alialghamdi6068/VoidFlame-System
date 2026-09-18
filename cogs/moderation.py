@@ -18,15 +18,24 @@ class Moderation(commands.Cog):
     async def _ban(self, guild, member, reason):
         await member.ban(reason=reason)
         log_activity(guild.id, 'ban', f'{member} | {reason}', member.id)
+        logs = self.bot.get_cog('Logs')
+        if logs:
+            await logs.send_log(guild, 'Ban', f'Member: {member.mention}\nReason: {reason}', actor=guild.me, color=discord.Color.red())
 
     async def _kick(self, guild, member, reason):
         await member.kick(reason=reason)
         log_activity(guild.id, 'kick', f'{member} | {reason}', member.id)
+        logs = self.bot.get_cog('Logs')
+        if logs:
+            await logs.send_log(guild, 'Kick', f'Member: {member.mention}\nReason: {reason}', actor=guild.me, color=discord.Color.orange())
 
     async def _timeout(self, guild, member, minutes, reason):
         until = discord.utils.utcnow() + datetime.timedelta(minutes=minutes)
         await member.timeout(until, reason=reason)
         log_activity(guild.id, 'timeout', f'{member} | {minutes}m | {reason}', member.id)
+        logs = self.bot.get_cog('Logs')
+        if logs:
+            await logs.send_log(guild, 'Timeout', f'Member: {member.mention}\nDuration: {minutes}m\nReason: {reason}', actor=guild.me, color=discord.Color.orange())
 
     async def _change_role(self, guild, member, role, add: bool, moderator):
         me = guild.me
@@ -53,6 +62,9 @@ class Moderation(commands.Cog):
             action = 'remove_role'
 
         log_activity(guild.id, action, f'{member} | {role.name}', member.id)
+        logs = self.bot.get_cog('Logs')
+        if logs:
+            await logs.send_log(guild, 'Role Update', f'Member: {member.mention}\nRole: {role.mention}\nAction: {action}', actor=moderator, color=discord.Color.blurple())
         return True
 
     @commands.command(name='باند')
@@ -137,6 +149,9 @@ class Moderation(commands.Cog):
     async def untimeout_prefix(self, ctx, member: discord.Member):
         await member.timeout(None, reason=f'Un-timeout by {ctx.author}')
         log_activity(ctx.guild.id, 'untimeout', str(member), member.id)
+        logs = self.bot.get_cog('Logs')
+        if logs:
+            await logs.send_log(ctx.guild, 'Untimeout', f'Member: {member.mention}', actor=ctx.author, color=discord.Color.green())
         await ctx.reply(f'✅ تم فك التايم عن {member.mention}.')
 
     @app_commands.command(name='untimeout', description='Remove a member timeout')
@@ -145,6 +160,9 @@ class Moderation(commands.Cog):
     async def untimeout_slash(self, interaction: discord.Interaction, member: discord.Member):
         await member.timeout(None, reason=f'Un-timeout by {interaction.user}')
         log_activity(interaction.guild.id, 'untimeout', str(member), member.id)
+        logs = self.bot.get_cog('Logs')
+        if logs:
+            await logs.send_log(interaction.guild, 'Untimeout', f'Member: {member.mention}', actor=interaction.user, color=discord.Color.green())
         await interaction.response.send_message(f'✅ تم فك التايم عن {member.mention}.')
 
     @commands.command(name='اعطاء رتبة')
