@@ -23,6 +23,7 @@ BOT_PREFIX = "!"
 BOT_NAME = "VoidFlame System"
 DASHBOARD_NAME = "VoidFlame System"
 OWNER_ID = int(os.getenv("OWNER_ID", "1293157778030071920"))
+SUPPORT_SERVER_URL = "https://discord.gg/jH3vwYJyaB"
 
 # Optional Gemini AI protection layer.
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", os.getenv("AI_API_KEY", "")).strip()
