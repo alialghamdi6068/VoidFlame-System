@@ -213,8 +213,16 @@ def register_api(app, bot):
             for level, rule in list(rules.items())[:10]:
                 if str(level).isdigit() and isinstance(rule, dict):
                     action = rule.get('action', 'warning')
-                    if action in {'warning', 'timeout', 'kick'}:
-                        clean[str(max(1, min(10, int(level))))] = {'action': action, 'minutes': max(1, min(40320, int(rule.get('minutes', 10))))}
+                    if action not in {'warning', 'timeout', 'kick'}:
+                        continue
+                    try:
+                        minutes = int(rule.get('minutes', 10))
+                    except (TypeError, ValueError):
+                        minutes = 10
+                    clean[str(max(1, min(10, int(level))))] = {
+                        'action': action,
+                        'minutes': max(1, min(40320, minutes))
+                    }
             data['warning_escalation'] = clean
         data.pop('ticket_panel_footer', None)
         update_guild_data(guild_id, **data)
