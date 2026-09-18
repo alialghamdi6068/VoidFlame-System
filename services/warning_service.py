@@ -3,7 +3,7 @@ import discord
 from database import connection, get_guild_data, log_activity
 
 
-async def issue_warning(guild, member, moderator, reason):
+async def issue_warning(guild, member, moderator, reason, bot=None):
     reason = (reason or "بدون سبب").strip()[:1000]
     with connection() as conn:
         conn.execute(
@@ -61,7 +61,19 @@ async def issue_warning(guild, member, moderator, reason):
                 action = "warning + kick_failed"
 
     log_activity(guild.id, "warn", f"{member} | {reason} | count={count} | action={action} | DM={dm_sent}", member.id)
-    logs = getattr(guild, "_voidflame_logs", None)
+    if bot is not None:
+        logs = bot.get_cog("Logs")
+        if logs:
+            try:
+                await logs.send_log(
+                    guild,
+                    "Warning",
+                    f"Member: {member.mention}\nModerator: {moderator.mention}\nCount: {count}\nAction: {action}\nDM: {'sent' if dm_sent else 'unavailable'}\nReason: {reason}",
+                    actor=moderator,
+                    color=discord.Color.orange(),
+                )
+            except Exception:
+                pass
     return count, dm_sent, action
 
 
