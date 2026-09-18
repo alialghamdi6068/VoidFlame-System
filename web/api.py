@@ -10,7 +10,7 @@ ALLOWED_SETTINGS = {
     'ticket_panel_title', 'ticket_panel_description',
     'applications_channel_id', 'applications_log_channel_id',
     'suggestions_channel_id', 'suggestions_log_channel_id',
-    'level_channel_id', 'level_announce', 'levels_enabled', 'xp_min', 'xp_max', 'level_cooldown', 'log_rate_limit', 'spam_window_seconds', 'spam_message_limit', 'mention_limit', 'raid_window_seconds', 'raid_join_threshold', 'raid_timeout_minutes', 'mass_change_window_seconds', 'mass_change_threshold', 'protection_timeout_minutes', 'ai_min_score', 'ai_medium_score', 'ai_high_score', 'ai_timeout_minutes', 'ai_repeat_threshold',
+    'level_channel_id', 'level_announce', 'levels_enabled', 'xp_min', 'xp_max', 'level_cooldown', 'log_rate_limit', 'spam_window_seconds', 'spam_message_limit', 'mention_limit', 'raid_window_seconds', 'raid_join_threshold', 'raid_timeout_minutes', 'mass_change_window_seconds', 'mass_change_threshold', 'protection_timeout_minutes', 'ai_min_score', 'ai_medium_score', 'ai_high_score', 'ai_timeout_minutes', 'ai_repeat_threshold', 'ai_action_cooldown_seconds', 'mass_change_action', 'mass_change_lockdown', 'webhook_protection', 'permission_change_protection', 'guild_update_protection', 'trusted_user_ids', 'trusted_role_ids',
     'log_rate_limit', 'spam_window_seconds', 'spam_message_limit', 'mention_limit', 'raid_window_seconds', 'raid_join_threshold', 'raid_timeout_minutes', 'mass_change_window_seconds', 'mass_change_threshold', 'protection_timeout_minutes',
     'giveaways_channel_id', 'autoreply_channel_id', 'announcements_channel_id',
     'scheduler_channel_id', 'reminder_channel_id', 'afk_channel_id'
@@ -30,7 +30,7 @@ INTEGER_SETTINGS = {
     'suggestions_channel_id', 'suggestions_log_channel_id',
     'level_channel_id', 'giveaways_channel_id', 'autoreply_channel_id',
     'announcements_channel_id', 'scheduler_channel_id', 'reminder_channel_id', 'afk_channel_id',
-    'xp_min', 'xp_max', 'level_cooldown'
+    'xp_min', 'xp_max', 'level_cooldown', 'ai_action_cooldown_seconds', 'mass_change_action'
 }
 
 BOOLEAN_SETTINGS = {'level_announce', 'levels_enabled', 'warn_dm_enabled', 'ai_enabled', 'protection_enabled', 'anti_raid_enabled', 'mass_change_protection'} | SYSTEM_ENABLED_SETTINGS
@@ -175,7 +175,7 @@ def register_api(app, bot):
                         return jsonify({'ok': False, 'error': 'العنصر المحدد غير موجود في هذا السيرفر.'}), 400
             elif key in BOOLEAN_SETTINGS:
                 value = bool(value)
-            elif key in {'ai_ignore_channels', 'ai_ignore_roles', 'disabled_log_events', 'protection_ignore_channels', 'protection_ignore_roles'}:
+            elif key in {'ai_ignore_channels', 'ai_ignore_roles', 'disabled_log_events', 'protection_ignore_channels', 'protection_ignore_roles', 'trusted_user_ids', 'trusted_role_ids'}:
                 if not isinstance(value, list):
                     return jsonify({'ok': False, 'error': f'القيمة غير صحيحة: {key}'}), 400
                 value = [str(x)[:30] for x in value[:100]]
