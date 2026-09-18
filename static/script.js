@@ -66,7 +66,7 @@ function addProtectionSettings(){
 }
 function buildSpecialPayload(p){
   ['trusted_user_ids','trusted_role_ids','protection_ignore_channels','protection_ignore_roles','ai_ignore_channels','ai_ignore_roles'].forEach(k=>{
-    if(p[k]!==undefined)p[k]=String(p[k]).split(',').map(x=>x.trim()).filter(x=>/^\\d+$/.test(x)).slice(0,100);
+    if(p[k]!==undefined)p[k]=String(p[k]).split(',').map(x=>x.trim()).filter(x=>/^\d+$/.test(x)).slice(0,100);
   });
   removeTicketEmojiFields();
   removeTicketFooterField();
