@@ -49,7 +49,25 @@ async function addSystemToggle(){
   markChanged();
 }
 
+function addProtectionSettings(){
+  if(!form||!location.pathname.endsWith('/system/ai')||form.querySelector('.protection-advanced'))return;
+  const panel=document.createElement('section');
+  panel.className='panel protection-advanced';
+  panel.innerHTML='<h3>🛡️ إعدادات الحماية المتقدمة</h3><div class="form-grid"><label>إجراء تغييرات الرومات والرتب<select name="mass_change_action"><option value="log">تسجيل فقط</option><option value="kick">طرد المنفذ</option></select></label><label>إجراء Anti-Raid<select name="raid_action"><option value="timeout">Timeout</option><option value="log">تسجيل فقط</option></select></label><label>إجراء Anti-Spam<select name="protection_action"><option value="timeout">Timeout</option><option value="kick">Kick</option></select></label><label class="check"><input type="checkbox" name="mass_change_lockdown"> قفل السيرفر تلقائياً عند التغيير الجماعي</label><label class="check"><input type="checkbox" name="webhook_protection"> حماية Webhooks</label><label class="check"><input type="checkbox" name="permission_change_protection"> حماية صلاحيات الرومات والرتب</label><label class="check"><input type="checkbox" name="guild_update_protection"> مراقبة تغييرات إعدادات السيرفر</label><label class="wide">المستخدمون الموثوقون (IDs مفصولة بفواصل)<input name="trusted_user_ids"></label><label class="wide">الرتب الموثوقة (IDs مفصولة بفواصل)<input name="trusted_role_ids"></label><label class="wide">رومات تجاهل الحماية (IDs مفصولة بفواصل)<input name="protection_ignore_channels"></label><label class="wide">رتب تجاهل الحماية (IDs مفصولة بفواصل)<input name="protection_ignore_roles"></label><label class="wide">رومات تجاهل AI (IDs مفصولة بفواصل)<input name="ai_ignore_channels"></label><label class="wide">رتب تجاهل AI (IDs مفصولة بفواصل)<input name="ai_ignore_roles"></label></div><p>اكتب IDs مفصولة بفواصل، مثال: 123,456,789.</p>';
+  form.appendChild(panel);
+  const csv=['trusted_user_ids','trusted_role_ids','protection_ignore_channels','protection_ignore_roles','ai_ignore_channels','ai_ignore_roles'];
+  fetch('/api/guild/'+String(window.FLAME_GUILD)+'/settings',{credentials:'same-origin'}).then(r=>r.json()).then(d=>{
+    if(!d.ok)return; const s=d.settings||{};
+    ['mass_change_action','raid_action','protection_action'].forEach(k=>{const x=panel.querySelector('[name="'+k+'"]');if(x&&s[k])x.value=s[k];});
+    ['mass_change_lockdown','webhook_protection','permission_change_protection','guild_update_protection'].forEach(k=>{const x=panel.querySelector('[name="'+k+'"]');if(x&&Object.prototype.hasOwnProperty.call(s,k))x.checked=Boolean(s[k]);});
+    csv.forEach(k=>{const x=panel.querySelector('[name="'+k+'"]');if(x)x.value=Array.isArray(s[k])?s[k].join(','):'';});
+    initialState=snapshot(); markChanged();
+  }).catch(()=>{});
+}
 function buildSpecialPayload(p){
+  ['trusted_user_ids','trusted_role_ids','protection_ignore_channels','protection_ignore_roles','ai_ignore_channels','ai_ignore_roles'].forEach(k=>{
+    if(p[k]!==undefined)p[k]=String(p[k]).split(',').map(x=>x.trim()).filter(x=>/^\\d+$/.test(x)).slice(0,100);
+  });
   removeTicketEmojiFields();
   removeTicketFooterField();
   if(document.querySelector('[name="ticket_button_label_1"]')){const buttons=[];for(let i=1;i<=5;i++){const label=document.querySelector(`[name="ticket_button_label_${i}"]`)?.value.trim()||'';if(!label)continue;buttons.push({label,style:document.querySelector(`[name="ticket_button_style_${i}"]`)?.value||'success',category_id:document.querySelector(`[name="ticket_button_category_${i}"]`)?.value||'',support_role_id:document.querySelector(`[name="ticket_button_role_${i}"]`)?.value||'',title:document.querySelector(`[name="ticket_button_title_${i}"]`)?.value.trim()||'',description:document.querySelector(`[name="ticket_button_description_${i}"]`)?.value.trim()||''});}for(let i=1;i<=5;i++){delete p[`ticket_button_label_${i}`];delete p[`ticket_button_emoji_${i}`];delete p[`ticket_button_style_${i}`];delete p[`ticket_button_category_${i}`];delete p[`ticket_button_role_${i}`];delete p[`ticket_button_title_${i}`];delete p[`ticket_button_description_${i}`];}p.ticket_buttons=buttons;}
@@ -61,6 +79,7 @@ removeTicketEmojiFields();
 removeTicketFooterField();
 addSystemToggle();
 addVariablePanel();
+addProtectionSettings();
 if(form){form.addEventListener('input',markChanged);form.addEventListener('change',markChanged);form.addEventListener('submit',async e=>{e.preventDefault();if(snapshot()===initialState)return;if(saveButton)saveButton.disabled=true;const p={};new FormData(form).forEach((v,k)=>p[k]=v);form.querySelectorAll('input[type=checkbox]').forEach(x=>p[x.name]=x.checked);['xp_min','xp_max','level_cooldown','log_rate_limit','spam_window_seconds','spam_message_limit','mention_limit','raid_window_seconds','raid_join_threshold','raid_timeout_minutes','mass_change_window_seconds','mass_change_threshold','protection_timeout_minutes'].forEach(k=>{if(p[k]!==undefined&&p[k]!=='')p[k]=Number(p[k]);});buildSpecialPayload(p);try{const d=await save(p);if(d.ok){initialState=snapshot();if(saveButton){saveButton.hidden=true;saveButton.disabled=true;}if(result)result.textContent='✓ تم الحفظ بنجاح.';}else{if(saveButton)saveButton.disabled=false;if(result)result.textContent='✕ '+(d.error||'تعذر الحفظ');}}catch(err){if(saveButton)saveButton.disabled=false;if(result)result.textContent=err.message==='csrf'?'✕ انتهت جلسة الأمان، حدّث الصفحة ثم حاول مرة أخرى.':'✕ تعذر الاتصال بالسيرفر.';}});}
 markChanged();
 const add=document.getElementById('add-reply');if(add)add.onclick=async()=>{const t=document.getElementById('reply-trigger'),r=document.getElementById('reply-response');if(!t.value.trim()||!r.value.trim())return alert('اكتب الكلمة والرد أولاً.');const d=await save({autoreply_action:'add',trigger:t.value.trim(),response:r.value.trim()});if(d.ok)location.reload();else alert(d.error||'تعذر الإضافة');};
