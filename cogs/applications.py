@@ -48,6 +48,8 @@ class Applications(commands.Cog):
     @commands.command(name='تقديم')
     @commands.guild_only()
     async def application_prefix(self,ctx):
+        if get_guild_data(ctx.guild.id).get('applications_enabled', True) is False:
+            return await ctx.reply('❌ نظام التقديمات متوقف حاليًا.')
         view=discord.ui.View(timeout=300); button=discord.ui.Button(label='فتح التقديم',style=discord.ButtonStyle.success,emoji='📝')
         async def callback(interaction): await interaction.response.send_modal(ApplicationModal(self))
         button.callback=callback; view.add_item(button); await ctx.reply('📝 اضغط الزر لفتح نموذج التقديم.',view=view)
