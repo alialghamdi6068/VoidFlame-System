@@ -83,6 +83,18 @@ async def maintenance_check(interaction: discord.Interaction):
 
 
 @bot.event
+async def on_command(ctx):
+    if not ctx.guild or ctx.author.bot:
+        return
+    logs = bot.get_cog("Logs")
+    if logs:
+        try:
+            await logs.send_log(ctx.guild, "Command Used", f"Command: !{ctx.command.qualified_name}\nChannel: {ctx.channel.mention}\nUser: {ctx.author.mention}", actor=ctx.author)
+        except Exception as exc:
+            print(f"[{BOT_NAME}] Command log failed: {type(exc).__name__}: {exc}")
+
+
+@bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         return
