@@ -60,7 +60,9 @@ class Applications(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
     async def set_log(self,ctx,channel:discord.TextChannel):
-        from database import update_guild_data; update_guild_data(ctx.guild.id,applications_log_channel_id=channel.id); await ctx.reply(f'✅ تم تحديد روم لوق التقديمات: {channel.mention}.')
+        from database import update_guild_data
+        update_guild_data(ctx.guild.id,log_channel_id=channel.id)
+        await ctx.reply(f'✅ تم تحديد روم اللوق الموحد: {channel.mention}. كل أنظمة البوت تستخدم هذا الروم.')
     @commands.command(name='قبول_تقديم')
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
