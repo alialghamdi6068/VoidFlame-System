@@ -197,6 +197,8 @@ class Tickets(commands.Cog):
         settings = get_guild_data(ctx.guild.id)
         if settings.get('tickets_enabled', True) is False:
             return await ctx.reply('❌ نظام التذاكر متوقف حاليًا.')
+        if settings.get('tickets_enabled', True) is False:
+            return await ctx.reply('❌ نظام التذاكر متوقف حاليًا.')
         panel_id = settings.get('ticket_panel_channel_id')
         channel = ctx.guild.get_channel(int(panel_id)) if panel_id else None
         if not isinstance(channel, discord.TextChannel):
