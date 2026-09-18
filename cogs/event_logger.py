@@ -135,8 +135,6 @@ class EventLogger(commands.Cog):
     @commands.Cog.listener()
     async def on_guild_update(self, before, after):
         settings = get_guild_data(after.id)
-        if settings.get("guild_update_protection", True) is False:
-            return
         changes = []
         if before.name != after.name:
             changes.append(f"Name: {before.name} -> {after.name}")
