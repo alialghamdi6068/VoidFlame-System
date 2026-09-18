@@ -39,6 +39,8 @@ class ApplicationModal(discord.ui.Modal,title='نموذج التقديم'):
             cur=conn.execute('INSERT INTO applications(guild_id,user_id,content) VALUES(?,?,?)',(guild.id,interaction.user.id,str(self.answer))); application_id=cur.lastrowid
         embed=discord.Embed(title=f'📨 تقديم جديد #{application_id}',description=str(self.answer),color=discord.Color.blurple()); embed.add_field(name='المتقدم',value=interaction.user.mention); embed.set_footer(text='الحالة: قيد المراجعة')
         await channel.send(embed=embed,view=ApplicationReviewView(self.cog,application_id)); log_activity(guild.id,'application_submit',f'#{application_id}',interaction.user.id)
+        logs=self.cog.bot.get_cog('Logs')
+        if logs: await logs.send_log(guild, 'Application Submit', f'#{application_id} by {interaction.user.mention}', actor=interaction.user)
         await interaction.response.send_message('✅ تم ارسال تقديمك يرجى انتظار رد الإدارة.',ephemeral=True)
 
 class Applications(commands.Cog):
@@ -77,5 +79,7 @@ class Applications(commands.Cog):
             try: await user.send(f'📨 تقديمك في **{ctx.guild.name}** أصبح: **{label}**.')
             except discord.HTTPException: pass
         await ctx.reply(f'✅ تم تحديث التقديم #{application_id} إلى **{label}**.')
+        logs=self.bot.get_cog('Logs')
+        if logs: await logs.send_log(ctx.guild, 'Application Review', f'#{application_id} -> {label}', actor=ctx.author, color=discord.Color.green() if status=='accepted' else discord.Color.red())
 
 async def setup(bot): await bot.add_cog(Applications(bot))
