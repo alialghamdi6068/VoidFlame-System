@@ -225,14 +225,14 @@ class Moderation(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(moderate_members=True)
     async def warn_prefix(self, ctx, member: discord.Member, *, reason='بدون سبب'):
-        count, dm_sent, action = await issue_warning(ctx.guild, member, ctx.author, reason_text(reason))
+        count, dm_sent, action = await issue_warning(ctx.guild, member, ctx.author, reason_text(reason), self.bot)
         await ctx.reply(f'⚠️ تم تحذير {member.mention}. مجموع التحذيرات: **{count}**. الإجراء: **{action}**. 📩 {"تم إرسال الخاص" if dm_sent else "الخاص غير متاح"}')
 
     @app_commands.command(name='warn', description='Warn a member')
     @app_commands.guild_only()
     @app_commands.checks.has_permissions(moderate_members=True)
     async def warn_slash(self, interaction: discord.Interaction, member: discord.Member, reason: str = 'بدون سبب'):
-        count, dm_sent, action = await issue_warning(interaction.guild, member, interaction.user, reason_text(reason))
+        count, dm_sent, action = await issue_warning(interaction.guild, member, interaction.user, reason_text(reason), self.bot)
         await interaction.response.send_message(f'⚠️ تم تحذير {member.mention}. مجموع التحذيرات: **{count}**. الإجراء: **{action}**. 📩 {"تم إرسال الخاص" if dm_sent else "الخاص غير متاح"}')
 
     @commands.command(name='تحذيرات')
