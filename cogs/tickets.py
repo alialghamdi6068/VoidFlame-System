@@ -127,6 +127,8 @@ class Tickets(commands.Cog):
         if not guild:
             return await interaction.response.send_message('❌ هذا الزر يعمل داخل السيرفر فقط.', ephemeral=True)
         settings = get_guild_data(guild.id)
+        if settings.get('tickets_enabled', True) is False:
+            return await interaction.response.send_message('❌ نظام التذاكر متوقف حاليًا.', ephemeral=True)
         button_config = button_config or {}
         category_id = button_config.get('category_id') or settings.get('ticket_category_id')
         support_role_id = button_config.get('support_role_id') or settings.get('ticket_support_role_id')
@@ -193,6 +195,8 @@ class Tickets(commands.Cog):
 
     async def send_panel(self, ctx):
         settings = get_guild_data(ctx.guild.id)
+        if settings.get('tickets_enabled', True) is False:
+            return await ctx.reply('❌ نظام التذاكر متوقف حاليًا.')
         panel_id = settings.get('ticket_panel_channel_id')
         channel = ctx.guild.get_channel(int(panel_id)) if panel_id else None
         if not isinstance(channel, discord.TextChannel):
