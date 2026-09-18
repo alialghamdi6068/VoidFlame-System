@@ -214,6 +214,8 @@ class Tickets(commands.Cog):
     @commands.has_permissions(manage_channels=True)
     async def claim_prefix(self, ctx):
         await ctx.reply(f'📥 تم استلام التذكرة بواسطة {ctx.author.mention}.')
+        logs=self.bot.get_cog('Logs')
+        if logs: await logs.send_log(ctx.guild, 'Ticket Claim', f'Channel: {ctx.channel.mention}', actor=ctx.author)
 
     @commands.command(name='اغلاق')
     @commands.guild_only()
@@ -226,6 +228,8 @@ class Tickets(commands.Cog):
     async def add_prefix(self, ctx, member: discord.Member):
         await ctx.channel.set_permissions(member, view_channel=True, send_messages=True, read_message_history=True)
         await ctx.reply(f'✅ تمت إضافة {member.mention} للتذكرة.')
+        logs=self.bot.get_cog('Logs')
+        if logs: await logs.send_log(ctx.guild, 'Ticket Add Member', f'Channel: {ctx.channel.mention}\nMember: {member.mention}', actor=ctx.author)
 
     @commands.command(name='ازالة')
     @commands.guild_only()
@@ -233,6 +237,8 @@ class Tickets(commands.Cog):
     async def remove_prefix(self, ctx, member: discord.Member):
         await ctx.channel.set_permissions(member, overwrite=None)
         await ctx.reply(f'✅ تمت إزالة {member.mention} من التذكرة.')
+        logs=self.bot.get_cog('Logs')
+        if logs: await logs.send_log(ctx.guild, 'Ticket Remove Member', f'Channel: {ctx.channel.mention}\nMember: {member.mention}', actor=ctx.author)
 
     @commands.Cog.listener()
     async def on_ready(self):
