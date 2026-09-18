@@ -117,6 +117,8 @@ class Giveaways(commands.Cog):
         if not row:
             return await ctx.reply('❌ ما لقيت قيفاواي شغال بهذا الرقم.')
         await self.finish(row)
+        logs=self.bot.get_cog('Logs')
+        if logs: await logs.send_log(ctx.guild, 'Giveaway End', f'Message: {message_id}', actor=ctx.author)
         await ctx.reply('✅ تم إنهاء القيفاواي.', delete_after=5)
 
     @commands.command(name='اعادة')
@@ -128,6 +130,8 @@ class Giveaways(commands.Cog):
         if not row:
             return await ctx.reply('❌ ما لقيت القيفاواي.')
         await self.finish(row, reroll=True)
+        logs=self.bot.get_cog('Logs')
+        if logs: await logs.send_log(ctx.guild, 'Giveaway Reroll', f'Message: {message_id}', actor=ctx.author)
         await ctx.reply('🔄 تم اختيار فائز جديد.', delete_after=5)
 
     @commands.command(name='قيفاواي_روم')
