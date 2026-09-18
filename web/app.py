@@ -1,6 +1,6 @@
 from flask import Flask, Response, render_template, request, session
 from werkzeug.middleware.proxy_fix import ProxyFix
-from config import SESSION_SECRET, SUPPORT_SERVER_URL
+from config import SESSION_SECRET
 from web.security import csrf_token, rate_limit
 
 
