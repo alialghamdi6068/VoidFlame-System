@@ -8,6 +8,8 @@ class Suggestions(commands.Cog):
         self.bot = bot
 
     async def create(self, guild, user, content, channel):
+        if get_guild_data(guild.id).get('suggestions_enabled', True) is False:
+            return None
         with connection() as conn:
             cur = conn.execute('INSERT INTO suggestions(guild_id,user_id,content) VALUES(?,?,?)', (guild.id, user.id, content[:2000]))
             suggestion_id = cur.lastrowid
@@ -58,7 +60,9 @@ class Suggestions(commands.Cog):
         channel = ctx.guild.get_channel(int(channel_id)) if channel_id else ctx.channel
         if not isinstance(channel, discord.TextChannel):
             return await ctx.reply('❌ روم الاقتراحات غير صحيح.')
-        await self.create(ctx.guild, ctx.author, content, channel)
+        suggestion_id = await self.create(ctx.guild, ctx.author, content, channel)
+        if suggestion_id is None:
+            return await ctx.reply('❌ نظام الاقتراحات متوقف حاليًا.')
         if channel.id != ctx.channel.id:
             await ctx.reply(f'✅ تم إرسال اقتراحك في {channel.mention}.')
 
