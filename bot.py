@@ -104,8 +104,19 @@ async def on_command_error(ctx, error):
 
 
 async def load_cogs():
-    cog_names = SYSTEM_COGS + ['maintenance']
-    for name in cog_names:
+    # Load maintenance first so persisted global maintenance is respected after restart.
+    try:
+        await bot.load_extension('cogs.maintenance')
+        print(f'[{BOT_NAME}] Loaded cogs.maintenance')
+    except Exception as exc:
+        print(f'[{BOT_NAME}] Failed to load cogs.maintenance: {type(exc).__name__}: {exc}')
+        return
+
+    if is_maintenance():
+        print(f'[{BOT_NAME}] Global maintenance is active; system cogs remain disabled.')
+        return
+
+    for name in SYSTEM_COGS:
         try:
             if name == 'extra_commands':
                 bot.tree.remove_command('avatar')
