@@ -1,4 +1,6 @@
 import discord
+import time
+from collections import defaultdict, deque
 from discord import app_commands
 from discord.ext import commands
 from database import get_guild_data, update_guild_data, log_activity
@@ -9,9 +11,20 @@ class Logs(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+        self._rate = defaultdict(deque)
 
     async def send_log(self, guild, title, description, user_id=None, actor=None, color=None):
         settings = get_guild_data(guild.id)
+        if settings.get("logs_enabled", True) is False:
+            return
+        now = time.monotonic()
+        q = self._rate[guild.id]
+        while q and now - q[0] > 5:
+            q.popleft()
+        if len(q) >= int(settings.get("log_rate_limit", 12)):
+            log_activity(guild.id, "log_rate_limited", title, user_id)
+            return
+        q.append(now)
         channel_id = settings.get('log_channel_id')
         channel = guild.get_channel(int(channel_id)) if channel_id else None
         if isinstance(channel, discord.TextChannel):
