@@ -118,16 +118,9 @@ class Tickets(commands.Cog):
         return overwrites
 
     async def write_ticket_log(self, guild, text):
-        settings = get_guild_data(guild.id)
-        channel_id = settings.get('ticket_log_channel_id')
-        if not channel_id:
-            return
-        channel = guild.get_channel(int(channel_id))
-        if isinstance(channel, discord.TextChannel):
-            try:
-                await channel.send(text)
-            except discord.HTTPException:
-                pass
+        logs = self.bot.get_cog("Logs")
+        if logs:
+            await logs.send_log(guild, "Ticket Action", text, color=discord.Color.blurple())
 
     async def create_ticket(self, interaction, button_config=None):
         guild, user = interaction.guild, interaction.user
