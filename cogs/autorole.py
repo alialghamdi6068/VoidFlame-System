@@ -11,6 +11,8 @@ class AutoRole(commands.Cog):
     @commands.Cog.listener()
     async def on_member_join(self, member):
         settings = get_guild_data(member.guild.id)
+        if settings.get('autorole_enabled', True) is False:
+            return
         role_id = settings.get('auto_role_id')
         if not role_id:
             return
