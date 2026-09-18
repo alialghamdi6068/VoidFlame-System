@@ -197,8 +197,6 @@ class Tickets(commands.Cog):
         settings = get_guild_data(ctx.guild.id)
         if settings.get('tickets_enabled', True) is False:
             return await ctx.reply('❌ نظام التذاكر متوقف حاليًا.')
-        if settings.get('tickets_enabled', True) is False:
-            return await ctx.reply('❌ نظام التذاكر متوقف حاليًا.')
         panel_id = settings.get('ticket_panel_channel_id')
         channel = ctx.guild.get_channel(int(panel_id)) if panel_id else None
         if not isinstance(channel, discord.TextChannel):
@@ -246,16 +244,21 @@ class Tickets(commands.Cog):
         logs=self.bot.get_cog('Logs')
         if logs: await logs.send_log(ctx.guild, 'Ticket Remove Member', f'Channel: {ctx.channel.mention}\nMember: {member.mention}', actor=ctx.author)
 
-    @commands.Cog.listener()
-    async def on_ready(self):
-        if not getattr(self.bot, '_flame_ticket_views_added', False):
-            self.bot.add_view(TicketView(self))
-            for guild in self.bot.guilds:
-                settings = get_guild_data(guild.id)
-                buttons = settings.get('ticket_buttons') or [{'label': '🎫 فتح تذكرة', 'style': 'success'}]
-                self.bot.add_view(TicketPanelView(self, guild.id, buttons))
-            self.bot._flame_ticket_views_added = True
+    def register_persistent_views(self):
+        if getattr(self.bot, '_flame_ticket_views_added', False):
+            return
+        self.bot.add_view(TicketView(self))
+        for guild in self.bot.guilds:
+            settings = get_guild_data(guild.id)
+            buttons = settings.get('ticket_buttons') or [{'label': '🎫 فتح تذكرة', 'style': 'success'}]
+            self.bot.add_view(TicketPanelView(self, guild.id, buttons))
+        self.bot._flame_ticket_views_added = True
+
+    def cog_unload(self):
+        self.bot._flame_ticket_views_added = False
 
 
 async def setup(bot):
-    await bot.add_cog(Tickets(bot))
+    cog = Tickets(bot)
+    await bot.add_cog(cog)
+    cog.register_persistent_views()
