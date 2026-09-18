@@ -33,7 +33,13 @@ class ApplicationModal(discord.ui.Modal,title='نموذج التقديم'):
     answer=discord.ui.TextInput(label='اكتب تقديمك',style=discord.TextStyle.paragraph,min_length=10,max_length=2000,placeholder='اكتب التفاصيل هنا...')
     def __init__(self,cog): super().__init__(); self.cog=cog
     async def on_submit(self,interaction):
-        guild=interaction.guild; settings=get_guild_data(guild.id); channel=guild.get_channel(int(settings['applications_channel_id'])) if settings.get('applications_channel_id') else None
+        guild=interaction.guild
+        if not guild:
+            return await interaction.response.send_message('❌ هذا النموذج يعمل داخل السيرفر فقط.',ephemeral=True)
+        settings=get_guild_data(guild.id)
+        if settings.get('applications_enabled', True) is False:
+            return await interaction.response.send_message('❌ نظام التقديمات متوقف حاليًا.',ephemeral=True)
+        channel=guild.get_channel(int(settings['applications_channel_id'])) if settings.get('applications_channel_id') else None
         if not isinstance(channel,discord.TextChannel): return await interaction.response.send_message('❌ الإدارة لم تحدد روم التقديمات من الداشبورد.',ephemeral=True)
         with connection() as conn:
             cur=conn.execute('INSERT INTO applications(guild_id,user_id,content) VALUES(?,?,?)',(guild.id,interaction.user.id,str(self.answer))); application_id=cur.lastrowid
