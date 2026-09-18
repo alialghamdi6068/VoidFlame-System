@@ -173,7 +173,11 @@ def register_api(app, bot):
                         return jsonify({'ok': False, 'error': 'العنصر المحدد غير موجود في هذا السيرفر.'}), 400
             elif key in BOOLEAN_SETTINGS:
                 value = bool(value)
-            elif key in {'ai_ignore_channels', 'ai_ignore_roles', 'disabled_log_events'}:\n                if not isinstance(value, list):\n                    return jsonify({'ok': False, 'error': f'القيمة غير صحيحة: {key}'}), 400\n                value = [str(x)[:30] for x in value[:100]]\n            elif key in {'welcome_message', 'ticket_panel_title', 'ticket_panel_description', 'warn_dm_message'}:
+            elif key in {'ai_ignore_channels', 'ai_ignore_roles', 'disabled_log_events'}:
+                if not isinstance(value, list):
+                    return jsonify({'ok': False, 'error': f'القيمة غير صحيحة: {key}'}), 400
+                value = [str(x)[:30] for x in value[:100]]
+            elif key in {'welcome_message', 'ticket_panel_title', 'ticket_panel_description', 'warn_dm_message'}:
                 value = str(value)
                 limits = {'welcome_message': 2000, 'ticket_panel_title': 256, 'ticket_panel_description': 4000, 'warn_dm_message': 2000}
                 value = value[:limits[key]]
