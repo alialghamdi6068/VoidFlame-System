@@ -1,6 +1,6 @@
 from flask import Flask, Response, render_template, request, session
 from werkzeug.middleware.proxy_fix import ProxyFix
-from config import SESSION_SECRET
+from config import SESSION_SECRET, SUPPORT_SERVER_URL
 from web.security import csrf_token, rate_limit
 
 
@@ -91,7 +91,7 @@ def create_app(bot):
 
     @app.errorhandler(403)
     def forbidden(error):
-        return render_template('error.html', title='غير مصرح', message='ليس لديك صلاحية لتنفيذ هذا الطلب.'), 403
+        return render_template('error.html'), 403
 
     @app.errorhandler(404)
     def not_found(error):
@@ -99,10 +99,14 @@ def create_app(bot):
 
     @app.errorhandler(413)
     def too_large(error):
-        return render_template('error.html', title='الطلب كبير جدًا', message='البيانات المرسلة أكبر من الحد المسموح.'), 413
+        return render_template('error.html'), 413
 
     @app.errorhandler(429)
     def too_many(error):
-        return render_template('error.html', title='محاولات كثيرة', message='تم تجاوز عدد المحاولات المسموح بها. حاول لاحقًا.'), 429
+        return render_template('error.html'), 429
+
+    @app.errorhandler(500)
+    def internal_error(error):
+        return render_template('error.html'), 500
 
     return app
