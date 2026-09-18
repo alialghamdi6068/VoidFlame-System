@@ -10,6 +10,7 @@ class AIGuard(commands.Cog):
         self.bot=bot
         self.engine=ModerationEngine()
         self.seen=set()
+        self.cooldowns=defaultdict(float)
 
     def ignored(self,message,settings):
         if not settings.get("ai_enabled",True) or message.author.bot or message.webhook_id:
@@ -44,7 +45,11 @@ class AIGuard(commands.Cog):
             if r.score<minimum: return
             medium=int(settings.get("ai_medium_score",40))
             high=int(settings.get("ai_high_score",70))
-            repeat_key=f"{message.guild.id}:{message.author.id}"
+            key=(message.guild.id,message.author.id)
+            now=time.monotonic()
+            cooldown=max(5,int(settings.get("ai_action_cooldown_seconds",20)))
+            if now < self.cooldowns[key]: return
+            self.cooldowns[key]=now+cooldown
             with connection() as conn:
                 recent=conn.execute("SELECT COUNT(*) c FROM warnings WHERE guild_id=? AND user_id=? AND created_at >= datetime('now','-15 minutes')",(message.guild.id,message.author.id)).fetchone()["c"]
             action="log"
