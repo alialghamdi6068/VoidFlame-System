@@ -19,6 +19,8 @@ class Scheduler(commands.Cog):
             rows=conn.execute('SELECT * FROM schedules WHERE sent=0 AND due_at<=?',(time.time(),)).fetchall()
             for row in rows: conn.execute('UPDATE schedules SET sent=1 WHERE id=?',(row['id'],))
         for row in rows:
+            if get_guild_data(row['guild_id']).get('scheduler_enabled', True) is False:
+                continue
             channel=self.bot.get_channel(row['channel_id'])
             guild=self.bot.get_guild(row['guild_id'])
             if guild:
