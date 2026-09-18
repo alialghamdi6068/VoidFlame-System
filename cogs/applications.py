@@ -20,7 +20,7 @@ class ApplicationReviewView(discord.ui.View):
         if user:
             try: await user.send(f'📨 بخصوص تقديمك في **{interaction.guild.name}**: **{label}**.')
             except discord.HTTPException: pass
-        logs=self.bot.get_cog('Logs')
+        logs=self.cog.bot.get_cog('Logs')
         if logs: await logs.send_log(interaction.guild, 'Application Review', f'📋 التقديم **#{self.application_id}**: {label} بواسطة {interaction.user.mention}.', actor=interaction.user, color=discord.Color.green() if status=='accepted' else discord.Color.red())
         log_activity(interaction.guild.id,'application_review',f'#{self.application_id} -> {status}',interaction.user.id)
         await interaction.response.send_message(f'✅ {label}.',ephemeral=True)
