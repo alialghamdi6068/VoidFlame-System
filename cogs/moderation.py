@@ -398,8 +398,10 @@ class Moderation(commands.Cog):
         elif isinstance(error, commands.CommandInvokeError) and isinstance(error.original, discord.Forbidden):
             await ctx.reply('❌ Discord رفض العملية. تأكد أن رتبة البوت أعلى من الرتبة المستهدفة وأن الصلاحيات صحيحة.')
         else:
-            await ctx.reply(f'❌ صار خطأ: `{type(error).__name__}`')
-            raise error
+            try:
+                await ctx.reply('❌ حدث خطأ أثناء تنفيذ الأمر. حاول مرة أخرى.')
+            except discord.HTTPException:
+                pass
 
 
 async def setup(bot):
