@@ -44,7 +44,13 @@ class ApplicationModal(discord.ui.Modal,title='نموذج التقديم'):
         with connection() as conn:
             cur=conn.execute('INSERT INTO applications(guild_id,user_id,content) VALUES(?,?,?)',(guild.id,interaction.user.id,str(self.answer))); application_id=cur.lastrowid
         embed=discord.Embed(title=f'📨 تقديم جديد #{application_id}',description=str(self.answer),color=discord.Color.blurple()); embed.add_field(name='المتقدم',value=interaction.user.mention); embed.set_footer(text='الحالة: قيد المراجعة')
-        await channel.send(embed=embed,view=ApplicationReviewView(self.cog,application_id)); log_activity(guild.id,'application_submit',f'#{application_id}',interaction.user.id)
+        try:
+            await channel.send(embed=embed,view=ApplicationReviewView(self.cog,application_id))
+        except discord.HTTPException:
+            with connection() as conn:
+                conn.execute('DELETE FROM applications WHERE id=? AND guild_id=?',(application_id,guild.id))
+            return await interaction.response.send_message('❌ تعذر إرسال التقديم للإدارة. حاول مرة أخرى.',ephemeral=True)
+        log_activity(guild.id,'application_submit',f'#{application_id}',interaction.user.id)
         logs=self.cog.bot.get_cog('Logs')
         if logs: await logs.send_log(guild, 'Application Submit', f'#{application_id} by {interaction.user.mention}', actor=interaction.user)
         await interaction.response.send_message('✅ تم ارسال تقديمك يرجى انتظار رد الإدارة.',ephemeral=True)
