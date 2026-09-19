@@ -26,6 +26,8 @@ class Reminders(commands.Cog):
                 conn.execute('UPDATE reminders SET sent=1 WHERE id=? AND sent=0',(row['id'],))
         for row in rows:
             if get_guild_data(row['guild_id']).get('reminders_enabled', True) is False:
+                with connection() as conn:
+                    conn.execute('UPDATE reminders SET sent=0 WHERE id=? AND sent=1', (row['id'],))
                 continue
             user=self.bot.get_user(row['user_id'])
             if not user:
