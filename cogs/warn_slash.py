@@ -2,7 +2,7 @@ import re
 import discord
 from discord import app_commands
 from discord.ext import commands
-from database import connection, log_activity, get_guild_data
+from services.warning_service import issue_warning
 
 
 class WarnSlash(commands.Cog):
@@ -10,21 +10,9 @@ class WarnSlash(commands.Cog):
         self.bot = bot
 
     async def _warn(self, guild, member, moderator, reason):
-        with connection() as conn:
-            conn.execute('INSERT INTO warnings(guild_id,user_id,moderator_id,reason) VALUES(?,?,?,?)', (guild.id, member.id, moderator.id, reason))
-            count = conn.execute('SELECT COUNT(*) AS c FROM warnings WHERE guild_id=? AND user_id=?', (guild.id, member.id)).fetchone()['c']
-        settings = get_guild_data(guild.id)
-        dm_sent = False
-        if settings.get('warn_dm_enabled', True):
-            template = str(settings.get('warn_dm_message', 'تم تحذيرك في سيرفر {server}.\\n\\nالسبب: {reason}\\nرقم التحذير: #{count}\\nبواسطة: {moderator}'))[:2000]
-            text = template.replace('{user}', str(member)).replace('{server}', guild.name).replace('{reason}', reason).replace('{count}', str(count)).replace('{moderator}', str(moderator))
-            try:
-                await member.send(text)
-                dm_sent = True
-            except (discord.Forbidden, discord.HTTPException):
-                pass
-        log_activity(guild.id, 'warn', f'{member} | {reason} | DM={dm_sent}', member.id)
+        count, dm_sent, action = await issue_warning(guild, member, moderator, reason, self.bot)
         return count, dm_sent
+
 
     @app_commands.command(name='warn', description='Warn a member or everyone with a role')
     @app_commands.guild_only()
