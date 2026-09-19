@@ -24,7 +24,12 @@ class TicketPanelButton(discord.ui.Button):
         self.config = config
 
     async def callback(self, interaction: discord.Interaction):
-        config = self.cog.get_panel_button_config(interaction.guild.id, self.custom_id.rsplit(':', 1)[-1]) if interaction.guild else self.config
+        if not interaction.guild:
+            return await interaction.response.send_message('❌ هذا الزر يعمل داخل السيرفر فقط.', ephemeral=True)
+        index = self.custom_id.rsplit(':', 1)[-1]
+        if not self.cog._panel_config_exists(interaction.guild.id, index):
+            return await interaction.response.send_message('❌ هذه اللوحة قديمة. أرسل لوحة التذاكر الجديدة من جديد.', ephemeral=True)
+        config = self.cog.get_panel_button_config(interaction.guild.id, index)
         await self.cog.create_ticket(interaction, config)
 
 
@@ -41,6 +46,8 @@ class MemberTicketModal(discord.ui.Modal):
             return await interaction.response.send_message('❌ هذا الزر يعمل داخل التذكرة فقط.', ephemeral=True)
         if not interaction.user.guild_permissions.manage_channels:
             return await interaction.response.send_message('❌ هذا الزر للإدارة فقط.', ephemeral=True)
+        if not self.cog.is_ticket_channel(interaction.channel):
+            return await interaction.response.send_message('❌ هذه القناة ليست تذكرة مفتوحة.', ephemeral=True)
         raw = str(self.member_input.value).strip()
         match = re.search(r'(\d{15,25})', raw)
         member_id = int(match.group(1)) if match else None
@@ -71,6 +78,8 @@ class TicketView(discord.ui.View):
     async def claim(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not interaction.guild or not interaction.user.guild_permissions.manage_channels:
             return await interaction.response.send_message('❌ هذا الزر للإدارة فقط.', ephemeral=True)
+        if not self.cog.is_ticket_channel(interaction.channel):
+            return await interaction.response.send_message('❌ هذه القناة ليست تذكرة مفتوحة.', ephemeral=True)
         await interaction.response.send_message(f'📥 تم استلام التذكرة بواسطة {interaction.user.mention}.')
         log_activity(interaction.guild.id, 'ticket_claim', str(interaction.channel), interaction.user.id)
 
@@ -104,6 +113,27 @@ class Tickets(commands.Cog):
         settings = get_guild_data(int(guild_id))
         buttons = settings.get('ticket_buttons') or [{'label': '🎫 فتح تذكرة', 'style': 'success'}]
         return buttons[index] if 0 <= index < len(buttons) else {}
+
+    def get_ticket_row(self, channel_id, status=None):
+        query = 'SELECT * FROM tickets WHERE channel_id=?'
+        params = [int(channel_id)]
+        if status:
+            query += ' AND status=?'
+            params.append(status)
+        with connection() as conn:
+            return conn.execute(query, params).fetchone()
+
+    def is_ticket_channel(self, channel):
+        return bool(channel and self.get_ticket_row(channel.id, 'open'))
+
+    def _panel_config_exists(self, guild_id, index):
+        try:
+            index = int(index)
+        except (TypeError, ValueError):
+            return False
+        settings = get_guild_data(int(guild_id))
+        buttons = settings.get('ticket_buttons') or [{'label': '🎫 فتح تذكرة', 'style': 'success'}]
+        return 0 <= index < len(buttons) and bool(str(buttons[index].get('label') or '').strip())
 
     def replace_variables(self, text, guild, user, ticket_id, category=None, support_role=None):
         return (
@@ -159,19 +189,39 @@ class Tickets(commands.Cog):
         try:
             with connection() as conn:
                 conn.execute('BEGIN IMMEDIATE')
+                existing_row = conn.execute(
+                    'SELECT channel_id FROM tickets WHERE guild_id=? AND user_id=? AND status="open" LIMIT 1',
+                    (guild.id, user.id)
+                ).fetchone()
+                if existing_row:
+                    raise RuntimeError(f'existing_ticket:{existing_row["channel_id"]}')
                 next_number = conn.execute(
                     'SELECT COALESCE(MAX(ticket_number), 0) + 1 FROM tickets WHERE guild_id=?',
                     (guild.id,)
                 ).fetchone()[0]
-                cursor = conn.execute(
-                    'INSERT INTO tickets(guild_id,channel_id,user_id,ticket_number) VALUES(?,?,?,?)',
-                    (guild.id, channel.id, user.id, next_number)
-                )
+                try:
+                    conn.execute(
+                        'INSERT INTO tickets(guild_id,channel_id,user_id,ticket_number) VALUES(?,?,?,?)',
+                        (guild.id, channel.id, user.id, next_number)
+                    )
+                except Exception:
+                    raise
                 ticket_id = next_number
             template = str(button_config.get('name_template') or settings.get('ticket_name_template') or '🎫・{number}')[:90].strip() or '🎫・{number}'
             channel_name = self.replace_variables(template, guild, user, ticket_id, category, support_role)
             channel_name = re.sub(r'[\\r\\n]+', ' ', channel_name).strip()[:100] or f'🎫・{ticket_id}'
             await channel.edit(name=channel_name, reason='Set guild ticket name')
+        except RuntimeError as exc:
+            try:
+                await channel.delete(reason='Duplicate ticket prevented')
+            except discord.HTTPException:
+                pass
+            if str(exc).startswith('existing_ticket:'):
+                existing_id = str(exc).split(':', 1)[1]
+                existing = guild.get_channel(int(existing_id))
+                if existing:
+                    return await interaction.response.send_message(f'❌ عندك تذكرة مفتوحة بالفعل: {existing.mention}', ephemeral=True)
+            return await interaction.response.send_message('❌ تعذر حفظ التذكرة في قاعدة البيانات.', ephemeral=True)
         except Exception:
             try:
                 await channel.delete(reason='Ticket database creation failed')
@@ -186,8 +236,21 @@ class Tickets(commands.Cog):
         description = self.replace_variables(description, guild, user, ticket_id, category, support_role)[:4000]
         embed = discord.Embed(title=title, description=description, color=discord.Color.blurple())
         embed.set_footer(text=TICKET_FOOTER)
-        await channel.send(content=user.mention, embed=embed, view=TicketView(self))
-        await interaction.response.send_message(f'✅ تم فتح تذكرتك: {channel.mention}', ephemeral=True)
+        try:
+            await channel.send(content=user.mention, embed=embed, view=TicketView(self))
+        except (discord.Forbidden, discord.HTTPException):
+            with connection() as conn:
+                conn.execute('DELETE FROM tickets WHERE channel_id=?', (channel.id,))
+            try:
+                await channel.delete(reason='Ticket message could not be sent')
+            except discord.HTTPException:
+                pass
+            return await interaction.response.send_message('❌ تم إنشاء القناة لكن تعذر إرسال رسالة التذكرة. تأكد من صلاحيات البوت.', ephemeral=True)
+        try:
+            await interaction.response.send_message(f'✅ تم فتح تذكرتك: {channel.mention}', ephemeral=True)
+        except discord.HTTPException:
+            # The ticket is already valid; do not delete it just because the interaction expired.
+            pass
 
     async def close_ticket(self, source):
         if isinstance(source, discord.Interaction):
@@ -240,6 +303,8 @@ class Tickets(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(manage_channels=True)
     async def claim_prefix(self, ctx):
+        if not self.is_ticket_channel(ctx.channel):
+            return await ctx.reply('❌ هذا الأمر يعمل داخل تذكرة مفتوحة فقط.')
         await ctx.reply(f'📥 تم استلام التذكرة بواسطة {ctx.author.mention}.')
         logs=self.bot.get_cog('Logs')
         if logs: await logs.send_log(ctx.guild, 'Ticket Claim', f'Channel: {ctx.channel.mention}', actor=ctx.author)
@@ -253,6 +318,8 @@ class Tickets(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(manage_channels=True)
     async def add_prefix(self, ctx, member: discord.Member):
+        if not self.is_ticket_channel(ctx.channel):
+            return await ctx.reply('❌ هذا الأمر يعمل داخل تذكرة مفتوحة فقط.')
         await ctx.channel.set_permissions(member, view_channel=True, send_messages=True, read_message_history=True)
         await ctx.reply(f'✅ تمت إضافة {member.mention} للتذكرة.')
         logs=self.bot.get_cog('Logs')
@@ -262,6 +329,8 @@ class Tickets(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(manage_channels=True)
     async def remove_prefix(self, ctx, member: discord.Member):
+        if not self.is_ticket_channel(ctx.channel):
+            return await ctx.reply('❌ هذا الأمر يعمل داخل تذكرة مفتوحة فقط.')
         await ctx.channel.set_permissions(member, overwrite=None)
         await ctx.reply(f'✅ تمت إزالة {member.mention} من التذكرة.')
         logs=self.bot.get_cog('Logs')
