@@ -159,7 +159,7 @@ class Tickets(commands.Cog):
                 ticket_id = next_number
             template = str(button_config.get('name_template') or settings.get('ticket_name_template') or '🎫・{number}')[:90].strip() or '🎫・{number}'
             channel_name = self.replace_variables(template, guild, user, ticket_id, category, support_role)
-            channel_name = re.sub(r'[^\\w\\- ]+', lambda m: m.group(0), channel_name, flags=re.UNICODE).strip()[:100] or f'🎫・{ticket_id:04d}'
+            channel_name = re.sub(r'[\\r\\n]+', ' ', channel_name).strip()[:100] or f'🎫・{ticket_id:04d}'
             await channel.edit(name=channel_name, reason='Set guild ticket name')
         except Exception:
             try:
