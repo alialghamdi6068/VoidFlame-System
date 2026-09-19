@@ -55,18 +55,24 @@ class Giveaways(commands.Cog):
             return []
         try:
             message = await channel.fetch_message(row['message_id'])
-        except discord.HTTPException:
-            return []
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            return None
         reaction = next((r for r in message.reactions if str(r.emoji) == '🎉'), None)
         if not reaction:
-            return []
+            return None
         users = [u async for u in reaction.users() if not u.bot]
         if not users:
-            await channel.send(f'🎉 انتهى القيفاواي **{row["prize"]}** ولكن ما فيه مشاركين.')
+            try:
+                await channel.send(f'🎉 انتهى القيفاواي **{row["prize"]}** ولكن ما فيه مشاركين.')
+            except discord.HTTPException:
+                return None
             return []
         winners = random.sample(users, min(row['winners'], len(users)))
         mentions = ', '.join(user.mention for user in winners)
-        await channel.send(f'🎉 مبروك {mentions}! فزتوا بـ **{row["prize"]}**!')
+        try:
+            await channel.send(f'🎉 مبروك {mentions}! فزتوا بـ **{row["prize"]}**!')
+        except discord.HTTPException:
+            return None
         logs=self.bot.get_cog('Logs')
         if logs: await logs.send_log(guild, 'Giveaway Finished', f'Prize: {row["prize"]}\nWinners: {mentions}', color=discord.Color.green())
         return winners
@@ -78,9 +84,10 @@ class Giveaways(commands.Cog):
         for row in rows:
             if get_guild_data(row['guild_id']).get('giveaways_enabled', True) is False:
                 continue
-            with connection() as conn:
-                conn.execute('UPDATE giveaways SET ended=1 WHERE id=?', (row['id'],))
-            await self.finish(row)
+            finished = await self.finish(row)
+            if finished is not None:
+                with connection() as conn:
+                    conn.execute('UPDATE giveaways SET ended=1 WHERE id=? AND ended=0', (row['id'],))
 
     @finish_loop.before_loop
     async def before_finish_loop(self):
