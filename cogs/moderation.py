@@ -147,6 +147,8 @@ class Moderation(commands.Cog):
     @commands.has_permissions(moderate_members=True)
     @commands.bot_has_permissions(moderate_members=True)
     async def untimeout_prefix(self, ctx, member: discord.Member):
+        if member == ctx.guild.owner or member == ctx.guild.me or member.top_role >= ctx.guild.me.top_role:
+            return await ctx.reply('❌ ما تقدر تعدل تايم عضو رتبته أعلى من البوت أو مساوية لها.')
         await member.timeout(None, reason=f'Un-timeout by {ctx.author}')
         log_activity(ctx.guild.id, 'untimeout', str(member), member.id)
         logs = self.bot.get_cog('Logs')
@@ -158,6 +160,8 @@ class Moderation(commands.Cog):
     @app_commands.guild_only()
     @app_commands.checks.has_permissions(moderate_members=True)
     async def untimeout_slash(self, interaction: discord.Interaction, member: discord.Member):
+        if member == interaction.guild.owner or member == interaction.guild.me or member.top_role >= interaction.guild.me.top_role:
+            return await interaction.response.send_message('❌ ما تقدر تعدل تايم عضو رتبته أعلى من البوت أو مساوية لها.', ephemeral=True)
         await member.timeout(None, reason=f'Un-timeout by {interaction.user}')
         log_activity(interaction.guild.id, 'untimeout', str(member), member.id)
         logs = self.bot.get_cog('Logs')
@@ -243,14 +247,22 @@ class Moderation(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(moderate_members=True)
     async def warn_prefix(self, ctx, member: discord.Member, *, reason='بدون سبب'):
-        count, dm_sent, action = await issue_warning(ctx.guild, member, ctx.author, reason_text(reason), self.bot)
+        try:
+            count, dm_sent, action = await issue_warning(ctx.guild, member, ctx.author, reason_text(reason), self.bot)
+        except ValueError as exc:
+            messages = {'target_owner': '❌ ما تقدر تحذر مالك السيرفر.', 'target_bot': '❌ ما تقدر تحذر البوت نفسه.', 'member_hierarchy': '❌ رتبة العضو أعلى من رتبة البوت أو مساوية لها.', 'target_self': '❌ ما تقدر تحذر نفسك.'}
+            return await ctx.reply(messages.get(str(exc), '❌ تعذر إصدار التحذير.'))
         await ctx.reply(f'⚠️ تم تحذير {member.mention}. مجموع التحذيرات: **{count}**. الإجراء: **{action}**. 📩 {"تم إرسال الخاص" if dm_sent else "الخاص غير متاح"}')
 
     @app_commands.command(name='warn', description='Warn a member')
     @app_commands.guild_only()
     @app_commands.checks.has_permissions(moderate_members=True)
     async def warn_slash(self, interaction: discord.Interaction, member: discord.Member, reason: str = 'بدون سبب'):
-        count, dm_sent, action = await issue_warning(interaction.guild, member, interaction.user, reason_text(reason), self.bot)
+        try:
+            count, dm_sent, action = await issue_warning(interaction.guild, member, interaction.user, reason_text(reason), self.bot)
+        except ValueError as exc:
+            messages = {'target_owner': '❌ ما تقدر تحذر مالك السيرفر.', 'target_bot': '❌ ما تقدر تحذر البوت نفسه.', 'member_hierarchy': '❌ رتبة العضو أعلى من رتبة البوت أو مساوية لها.', 'target_self': '❌ ما تقدر تحذر نفسك.'}
+            return await interaction.response.send_message(messages.get(str(exc), '❌ تعذر إصدار التحذير.'), ephemeral=True)
         await interaction.response.send_message(f'⚠️ تم تحذير {member.mention}. مجموع التحذيرات: **{count}**. الإجراء: **{action}**. 📩 {"تم إرسال الخاص" if dm_sent else "الخاص غير متاح"}')
 
     @commands.command(name='تحذيرات')
