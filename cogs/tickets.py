@@ -111,7 +111,9 @@ class Tickets(commands.Cog):
         except (TypeError, ValueError):
             return {}
         settings = get_guild_data(int(guild_id))
-        buttons = settings.get('ticket_buttons') or [{'label': '🎫 فتح تذكرة', 'style': 'success'}]
+        buttons = settings.get('ticket_buttons') if 'ticket_buttons' in settings else [{'label': '🎫 فتح تذكرة', 'style': 'success'}]
+        if not isinstance(buttons, list):
+            buttons = []
         return buttons[index] if 0 <= index < len(buttons) else {}
 
     def get_ticket_row(self, channel_id, status=None):
@@ -132,8 +134,10 @@ class Tickets(commands.Cog):
         except (TypeError, ValueError):
             return False
         settings = get_guild_data(int(guild_id))
-        buttons = settings.get('ticket_buttons') or [{'label': '🎫 فتح تذكرة', 'style': 'success'}]
-        return 0 <= index < len(buttons) and bool(str(buttons[index].get('label') or '').strip())
+        buttons = settings.get('ticket_buttons') if 'ticket_buttons' in settings else [{'label': '🎫 فتح تذكرة', 'style': 'success'}]
+        if not isinstance(buttons, list):
+            return False
+        return 0 <= index < len(buttons) and isinstance(buttons[index], dict) and bool(str(buttons[index].get('label') or '').strip())
 
     def replace_variables(self, text, guild, user, ticket_id, category=None, support_role=None):
         return (
@@ -194,7 +198,13 @@ class Tickets(commands.Cog):
                     (guild.id, user.id)
                 ).fetchone()
                 if existing_row:
-                    raise RuntimeError(f'existing_ticket:{existing_row["channel_id"]}')
+                    existing_channel = guild.get_channel(int(existing_row["channel_id"]))
+                    if existing_channel:
+                        raise RuntimeError(f'existing_ticket:{existing_channel.id}')
+                    conn.execute(
+                        'UPDATE tickets SET status="closed", closed_at=CURRENT_TIMESTAMP WHERE guild_id=? AND user_id=? AND status="open"',
+                        (guild.id, user.id)
+                    )
                 next_number = conn.execute(
                     'SELECT COALESCE(MAX(ticket_number), 0) + 1 FROM tickets WHERE guild_id=?',
                     (guild.id,)
@@ -289,7 +299,11 @@ class Tickets(commands.Cog):
             return await ctx.reply('❌ حدد **روم لوحة التذاكر** من الموقع أولاً، ثم استخدم `!تكت`.')
         embed = discord.Embed(title=str(settings.get('ticket_panel_title') or '🎫 نظام التذاكر')[:256], description=str(settings.get('ticket_panel_description') or 'تحتاج مساعدة؟ اختر القسم المناسب من الأزرار بالأسفل.')[:4000], color=discord.Color.blurple())
         embed.set_footer(text=TICKET_FOOTER)
-        buttons = settings.get('ticket_buttons') or [{'label': '🎫 فتح تذكرة', 'style': 'success'}]
+        buttons = settings.get('ticket_buttons') if 'ticket_buttons' in settings else [{'label': '🎫 فتح تذكرة', 'style': 'success'}]
+        if not isinstance(buttons, list):
+            buttons = []
+        if not buttons:
+            return await ctx.reply('❌ أضف زرًا واحدًا على الأقل من لوحة التحكم أولاً.')
         await channel.send(embed=embed, view=TicketPanelView(self, ctx.guild.id, buttons))
         await ctx.reply(f'✅ تم إرسال لوحة التذاكر في {channel.mention}.')
 
@@ -344,7 +358,9 @@ class Tickets(commands.Cog):
             if guild.id in self._registered_panel_guilds:
                 continue
             settings = get_guild_data(guild.id)
-            buttons = settings.get('ticket_buttons') or [{'label': '🎫 فتح تذكرة', 'style': 'success'}]
+            buttons = settings.get('ticket_buttons') if 'ticket_buttons' in settings else [{'label': '🎫 فتح تذكرة', 'style': 'success'}]
+            if not isinstance(buttons, list):
+                buttons = []
             self.bot.add_view(TicketPanelView(self, guild.id, buttons))
             self._registered_panel_guilds.add(guild.id)
 
