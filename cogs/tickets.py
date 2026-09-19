@@ -24,7 +24,8 @@ class TicketPanelButton(discord.ui.Button):
         self.config = config
 
     async def callback(self, interaction: discord.Interaction):
-        await self.cog.create_ticket(interaction, self.config)
+        config = self.cog.get_panel_button_config(interaction.guild.id, self.custom_id.rsplit(':', 1)[-1]) if interaction.guild else self.config
+        await self.cog.create_ticket(interaction, config)
 
 
 class MemberTicketModal(discord.ui.Modal):
@@ -93,6 +94,16 @@ class TicketView(discord.ui.View):
 class Tickets(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self._registered_panel_guilds = set()
+
+    def get_panel_button_config(self, guild_id, index):
+        try:
+            index = int(index)
+        except (TypeError, ValueError):
+            return {}
+        settings = get_guild_data(int(guild_id))
+        buttons = settings.get('ticket_buttons') or [{'label': '🎫 فتح تذكرة', 'style': 'success'}]
+        return buttons[index] if 0 <= index < len(buttons) else {}
 
     def replace_variables(self, text, guild, user, ticket_id, category=None, support_role=None):
         return (
@@ -100,7 +111,7 @@ class Tickets(commands.Cog):
             .replace('{member}', user.mention)
             .replace('{username}', user.display_name)
             .replace('{server}', guild.name)
-            .replace('{ticket}', f'#{ticket_id:04d}')
+            .replace('{ticket}', f'#{ticket_id}')
             .replace('{number}', f'{ticket_id}')
             .replace('{category}', category.name if isinstance(category, discord.CategoryChannel) else 'بدون قسم')
             .replace('{support}', support_role.mention if support_role else 'فريق الدعم')
@@ -261,12 +272,16 @@ class Tickets(commands.Cog):
             self.bot.add_view(TicketView(self))
             self.bot._flame_ticket_base_view_added = True
         for guild in self.bot.guilds:
+            if guild.id in self._registered_panel_guilds:
+                continue
             settings = get_guild_data(guild.id)
             buttons = settings.get('ticket_buttons') or [{'label': '🎫 فتح تذكرة', 'style': 'success'}]
             self.bot.add_view(TicketPanelView(self, guild.id, buttons))
+            self._registered_panel_guilds.add(guild.id)
 
     def cog_unload(self):
         self.bot._flame_ticket_base_view_added = False
+        self._registered_panel_guilds.clear()
 
 
 async def setup(bot):
