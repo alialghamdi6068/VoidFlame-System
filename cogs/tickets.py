@@ -10,7 +10,7 @@ TICKET_FOOTER = 'VoidFlame • System'
 class TicketPanelView(discord.ui.View):
     def __init__(self, cog, guild_id, buttons=None):
         super().__init__(timeout=None)
-        configs = buttons if isinstance(buttons, list) else [{'label': '🎫 فتح تذكرة', 'style': 'success'}]
+        configs = buttons if isinstance(buttons, list) else []
         for index, config in enumerate(configs[:5]):
             self.add_item(TicketPanelButton(cog, config, guild_id, index))
 
