@@ -20,7 +20,7 @@ class Reminders(commands.Cog):
     async def loop(self):
         with connection() as conn:
             rows=conn.execute('SELECT * FROM reminders WHERE sent=0 AND due_at<=?',(time.time(),)).fetchall()
-            for row in rows: conn.execute('UPDATE reminders SET sent=1 WHERE id=?',(row['id'],))
+            for row in rows: conn.execute('UPDATE reminders SET sent=1 WHERE id=? AND sent=0',(row['id'],))
         for row in rows:
             if get_guild_data(row['guild_id']).get('reminders_enabled', True) is False:
                 continue
@@ -28,10 +28,23 @@ class Reminders(commands.Cog):
             if not user:
                 try: user=await self.bot.fetch_user(row['user_id'])
                 except discord.HTTPException: continue
-            try: await user.send(f'⏰ **تذكيرك:**\n{row["text"]}')
+            delivered = False
+            try:
+                await user.send(f'⏰ **تذكيرك:**\n{row["text"]}')
+                delivered = True
             except discord.HTTPException:
-                channel=self.bot.get_channel(row['channel_id'])
-                if isinstance(channel,discord.TextChannel): await channel.send(f'⏰ {user.mention} تذكيرك: {row["text"]}')
+                settings = get_guild_data(row['guild_id'])
+                configured = settings.get('reminder_channel_id')
+                channel = self.bot.get_channel(int(configured)) if configured else self.bot.get_channel(row['channel_id'])
+                if isinstance(channel, discord.TextChannel):
+                    try:
+                        await channel.send(f'⏰ {user.mention} تذكيرك: {row["text"]}')
+                        delivered = True
+                    except discord.HTTPException:
+                        pass
+            if not delivered:
+                with connection() as conn:
+                    conn.execute('UPDATE reminders SET sent=0 WHERE id=?',(row['id'],))
     @loop.before_loop
     async def before_loop(self): await self.bot.wait_until_ready()
     @commands.command(name='تذكير')
