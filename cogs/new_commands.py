@@ -6,6 +6,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from database import connection, log_activity
+from services.warning_service import issue_warning
 
 CREATOR_ID = 1293157778030071920
 
@@ -36,18 +37,9 @@ class NewCommands(commands.Cog):
             return False
 
     async def _warn_member(self, guild, member, moderator, reason):
-        with connection() as conn:
-            conn.execute(
-                'INSERT INTO warnings(guild_id,user_id,moderator_id,reason) VALUES(?,?,?,?)',
-                (guild.id, member.id, moderator.id, reason),
-            )
-            count = conn.execute(
-                'SELECT COUNT(*) AS c FROM warnings WHERE guild_id=? AND user_id=?',
-                (guild.id, member.id),
-            ).fetchone()['c']
-        log_activity(guild.id, 'warn', f'{member} | {reason}', member.id)
-        dm_sent = await self._send_warning_dm(member, guild, moderator, reason, count)
+        count, dm_sent, action = await issue_warning(guild, member, moderator, reason, self.bot)
         return count, dm_sent
+
 
     @commands.command(name='تحذير')
     @commands.guild_only()
