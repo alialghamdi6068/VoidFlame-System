@@ -253,17 +253,16 @@ class Tickets(commands.Cog):
         if logs: await logs.send_log(ctx.guild, 'Ticket Remove Member', f'Channel: {ctx.channel.mention}\nMember: {member.mention}', actor=ctx.author)
 
     def register_persistent_views(self):
-        if getattr(self.bot, '_flame_ticket_views_added', False):
-            return
-        self.bot.add_view(TicketView(self))
+        if not getattr(self.bot, '_flame_ticket_base_view_added', False):
+            self.bot.add_view(TicketView(self))
+            self.bot._flame_ticket_base_view_added = True
         for guild in self.bot.guilds:
             settings = get_guild_data(guild.id)
             buttons = settings.get('ticket_buttons') or [{'label': '🎫 فتح تذكرة', 'style': 'success'}]
             self.bot.add_view(TicketPanelView(self, guild.id, buttons))
-        self.bot._flame_ticket_views_added = True
 
     def cog_unload(self):
-        self.bot._flame_ticket_views_added = False
+        self.bot._flame_ticket_base_view_added = False
 
 
 async def setup(bot):
