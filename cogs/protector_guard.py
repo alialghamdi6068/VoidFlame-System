@@ -18,6 +18,7 @@ class ProtectorGuard(commands.Cog):
         self.mentions = defaultdict(deque)
         self.joins = defaultdict(deque)
         self.actions = defaultdict(deque)
+        self.actor_actions = defaultdict(lambda: defaultdict(deque))
         self.cooldowns = {}
         self._cleanup_task = asyncio.create_task(self._cleanup())
 
@@ -168,11 +169,33 @@ class ProtectorGuard(commands.Cog):
         threshold = max(3, int(settings.get("mass_change_threshold", 5)))
         if len(q) < threshold:
             return
+        # Attribute the burst to the actor who performed the most matching recent actions.
+        actor_candidates = []
+        try:
+            async for entry in guild.audit_logs(limit=25, action=audit_action):
+                age = (discord.utils.utcnow() - entry.created_at).total_seconds()
+                if age > window + 5:
+                    break
+                actor_id = getattr(entry.user, 'id', None)
+                if actor_id:
+                    actor_candidates.append((entry.created_at, actor_id, entry.user))
+        except (discord.Forbidden, discord.HTTPException):
+            actor_candidates = []
+        actor = None
+        if actor_candidates:
+            counts = defaultdict(int)
+            newest_by_actor = {}
+            for created_at, actor_id, user in actor_candidates:
+                counts[actor_id] += 1
+                newest_by_actor[actor_id] = (created_at, user)
+            actor_id = max(counts, key=counts.get)
+            actor = newest_by_actor[actor_id][1]
         cooldown_key = ("nuke", guild.id, action_key)
         if now < self.cooldowns.get(cooldown_key, 0):
             return
         self.cooldowns[cooldown_key] = now + 45
-        actor = await self._actor(guild, audit_action, target_id)
+        if actor is None:
+            actor = await self._actor(guild, audit_action, target_id)
         if actor and self._trusted(actor, settings):
             await self._log(guild, title + " Burst", f"Detected {len(q)} events in {window}s\nActor: {actor.mention}\nActor is trusted; no punishment.", actor, discord.Color.orange())
             return
@@ -283,6 +306,29 @@ class ProtectorGuard(commands.Cog):
     @commands.Cog.listener()
     async def on_guild_role_delete(self, role):
         await self._nuke_event(role.guild, "role_delete", discord.AuditLogAction.role_delete, "Role Delete", role.id)
+
+    @commands.Cog.listener()
+    async def on_guild_update(self, before, after):
+        settings = settings_cache.get(after.id)
+        if not settings.get('guild_update_protection', True):
+            return
+        changed = []
+        if before.name != after.name: changed.append('name')
+        if before.icon != after.icon: changed.append('icon')
+        if before.verification_level != after.verification_level: changed.append('verification')
+        if not changed: return
+        actor = await self._actor(after, discord.AuditLogAction.guild_update)
+        if actor and self._trusted(actor, settings):
+            await self._log(after, 'Guild Security', f"Changes: {', '.join(changed)}\\nActor: {actor.mention}\\nTrusted: yes", actor, discord.Color.orange())
+            return
+        action = 'logged'
+        if actor and settings.get('mass_change_action', 'log') == 'kick' and after.me and after.me.guild_permissions.kick_members and actor != after.owner and actor.top_role < after.me.top_role:
+            try:
+                await actor.kick(reason='VoidFlame guild settings protection')
+                action = 'kick'
+            except (discord.Forbidden, discord.HTTPException):
+                action = 'kick_failed'
+        await self._log(after, 'Guild Security', f"Changes: {', '.join(changed)}\\nActor: {actor.mention if actor else 'Unknown'}\\nAction: {action}", actor, discord.Color.red())
 
     @commands.Cog.listener()
     async def on_guild_role_update(self, before, after):
