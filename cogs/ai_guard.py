@@ -36,9 +36,13 @@ class AIGuard(commands.Cog):
             if self.ignored(message,settings): return
             r=self.engine.analyze(message.content)
             minimum=int(settings.get("ai_min_score",40))
-            if r.score<minimum: return
+            if r.score <= 0:
+                return
             medium=int(settings.get("ai_medium_score",40))
             high=int(settings.get("ai_high_score",70))
+            if r.score < minimum:
+                await self.log(message.guild,"AI Moderation",f"Member: {message.author.mention}\nChannel: {message.channel.mention}\nScore: {r.score}/100\nConfidence: {r.confidence:.0%}\nCategory: {r.category}\nAction: log only\nReason: {r.reason}\nContent: {message.content[:1000]}",message.author,discord.Color.orange())
+                return
             key=(message.guild.id,message.author.id)
             now=time.monotonic()
             cooldown=max(5,int(settings.get("ai_action_cooldown_seconds",20)))
