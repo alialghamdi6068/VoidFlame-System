@@ -1,6 +1,8 @@
 import asyncio
 import random
 import re
+import ast
+import operator
 from datetime import datetime, timezone
 
 import discord
@@ -30,7 +32,10 @@ class ExtraCommands(commands.Cog):
     @commands.command(name='رابط')
     @commands.guild_only()
     async def invite_link(self, ctx):
-        invites = await ctx.guild.invites()
+        try:
+            invites = await ctx.guild.invites()
+        except discord.Forbidden:
+            invites = []
         usable = [i for i in invites if i.max_age == 0 and i.max_uses == 0]
         if usable:
             return await ctx.reply(f'🔗 {usable[0].url}')
@@ -224,13 +229,31 @@ class ExtraCommands(commands.Cog):
     @commands.command(name='حساب')
     async def calculator(self, ctx, *, expression: str):
         expression = expression.strip()
-        if len(expression) > 100 or not re.fullmatch(r'[0-9+\-*/().% ]+', expression):
+        if len(expression) > 80 or not re.fullmatch(r'[0-9+\\-*/().% ]+', expression):
             return await ctx.reply('❌ اكتب عملية حسابية بسيطة فقط.')
         try:
-            result = eval(expression, {'__builtins__': {}}, {})
+            tree = ast.parse(expression, mode='eval')
+            ops = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul, ast.Div: operator.truediv, ast.Mod: operator.mod, ast.USub: operator.neg, ast.UAdd: operator.pos}
+            def calc(node, depth=0):
+                if depth > 20: raise ValueError
+                if isinstance(node, ast.Expression): return calc(node.body, depth + 1)
+                if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)) and not isinstance(node.value, bool):
+                    if abs(node.value) > 1000000: raise ValueError
+                    return node.value
+                if isinstance(node, ast.UnaryOp) and type(node.op) in ops:
+                    return ops[type(node.op)](calc(node.operand, depth + 1))
+                if isinstance(node, ast.BinOp) and type(node.op) in ops:
+                    left, right = calc(node.left, depth + 1), calc(node.right, depth + 1)
+                    if isinstance(node.op, ast.Mult) and abs(left) > 100000: raise ValueError
+                    result = ops[type(node.op)](left, right)
+                    if isinstance(result, (int, float)) and abs(result) > 1000000000: raise ValueError
+                    return result
+                raise ValueError
+            result = calc(tree)
+            if isinstance(result, float) and not result.is_integer(): result = round(result, 10)
             await ctx.reply(f'🧮 الناتج: **{result}**')
-        except Exception:
-            await ctx.reply('❌ العملية غير صالحة.')
+        except (ValueError, TypeError, ZeroDivisionError, SyntaxError, OverflowError):
+            await ctx.reply('❌ العملية غير صالحة أو كبيرة جدًا.')
 
     @commands.command(name='لون')
     async def color_info(self, ctx, color: str):
