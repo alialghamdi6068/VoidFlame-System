@@ -91,6 +91,15 @@ async def on_message(message):
 
 
 @bot.event
+async def on_guild_join(guild):
+    tickets = bot.get_cog("Tickets")
+    if tickets:
+        try:
+            tickets.register_persistent_views()
+        except Exception as exc:
+            print(f"[VoidFlame] Failed to register ticket views for new guild {guild.id}: {exc}")
+
+@bot.event
 async def on_ready():
     settings_cache.clear()
     tickets = bot.get_cog("Tickets")
