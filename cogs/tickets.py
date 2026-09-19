@@ -102,7 +102,7 @@ class TicketCloseConfirmView(discord.ui.View):
                 await channel.set_permissions(opener, view_channel=False, send_messages=False, read_message_history=False)
             with connection() as conn:
                 conn.execute("UPDATE tickets SET status='closed', closed_at=CURRENT_TIMESTAMP WHERE channel_id=? AND status='open'", (self.channel_id,))
-            await interaction.response.edit_message(content='🔒 تم إغلاق التذكرة. اختر الإجراء المطلوب:', view=TicketCloseActionView(self.cog, self.channel_id, self.user_id))
+            await interaction.response.edit_message(content='🔒 تم إغلاق التذكرة. اختر الإجراء المطلوب:', view=TicketCloseActionView(self.cog, self.channel_id, self.user_id, show_delete=interaction.user.guild_permissions.manage_channels))
             self.stop()
         except (discord.Forbidden, discord.HTTPException):
             return await interaction.response.edit_message(content='❌ ما قدرت أقفل رؤية التذكرة عن صاحبها. تأكد من صلاحيات البوت.', view=None)
@@ -114,11 +114,15 @@ class TicketCloseConfirmView(discord.ui.View):
 
 
 class TicketCloseActionView(discord.ui.View):
-    def __init__(self, cog, channel_id, user_id):
+    def __init__(self, cog, channel_id, user_id, show_delete=False):
         super().__init__(timeout=120)
         self.cog = cog
         self.channel_id = int(channel_id)
         self.user_id = int(user_id)
+        self.show_delete = bool(show_delete)
+        if not self.show_delete:
+            # The delete action is an administration-only control.
+            self.remove_item(self.delete)
 
     async def interaction_check(self, interaction: discord.Interaction):
         if interaction.user.id != self.user_id:
@@ -128,6 +132,8 @@ class TicketCloseActionView(discord.ui.View):
 
     @discord.ui.button(label='حذف التذكرة', style=discord.ButtonStyle.danger, emoji='🗑️')
     async def delete(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not interaction.user.guild_permissions.manage_channels:
+            return await interaction.response.send_message('❌ زر حذف التذكرة للإدارة فقط.', ephemeral=True)
         await self.cog.delete_closed_ticket(interaction, self.channel_id)
         self.stop()
 
