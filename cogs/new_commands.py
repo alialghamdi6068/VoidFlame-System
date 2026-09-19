@@ -56,11 +56,18 @@ class NewCommands(commands.Cog):
                 return await ctx.reply(f'ℹ️ لا يوجد أعضاء قابلون للتحذير في {role.mention}.')
             sent = 0
             failed = 0
+            skipped = 0
             for member in members:
-                _, dm = await self._warn_member(ctx.guild, member, ctx.author, reason)
-                sent += int(dm)
-                failed += int(not dm)
-            return await ctx.reply(f'⚠️ تم تحذير **{len(members)}** عضوًا في {role.mention}.\n📩 الخاص: **{sent}** | تعذر الإرسال: **{failed}**')
+                try:
+                    _, dm = await self._warn_member(ctx.guild, member, ctx.author, reason)
+                    sent += int(dm)
+                    failed += int(not dm)
+                except ValueError:
+                    skipped += 1
+            return await ctx.reply(
+                f'⚠️ تم تحذير **{sent + failed}** عضوًا في {role.mention}.\n'
+                f'📩 الخاص: **{sent}** | تعذر الإرسال: **{failed}** | تم تخطي: **{skipped}**'
+            )
 
         member_id = parse_mention_id(target)
         member = ctx.guild.get_member(member_id) if member_id else None
@@ -71,7 +78,16 @@ class NewCommands(commands.Cog):
                 return await ctx.reply('❌ استخدم منشن عضو أو منشن رتبة.')
         if member.bot:
             return await ctx.reply('❌ لا يمكن تحذير البوتات.')
-        count, dm_sent = await self._warn_member(ctx.guild, member, ctx.author, reason)
+        try:
+            count, dm_sent = await self._warn_member(ctx.guild, member, ctx.author, reason)
+        except ValueError as exc:
+            messages = {
+                'target_owner': '❌ ما تقدر تحذر مالك السيرفر.',
+                'target_bot': '❌ ما تقدر تحذر البوت نفسه.',
+                'member_hierarchy': '❌ رتبة العضو أعلى من رتبة البوت أو مساوية لها.',
+                'target_self': '❌ ما تقدر تحذر نفسك.',
+            }
+            return await ctx.reply(messages.get(str(exc), '❌ تعذر إصدار التحذير.'))
         dm_text = 'تم إرسال الخاص.' if dm_sent else 'تعذر إرسال الخاص لهذا العضو.'
         await ctx.reply(f'⚠️ تم تحذير {member.mention}. مجموع التحذيرات: **{count}**.\n📩 {dm_text}')
 
