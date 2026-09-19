@@ -197,9 +197,9 @@ class ProtectorGuard(commands.Cog):
             return
         now = time.monotonic()
         q = self.joins[member.guild.id]
-        q.append(now)
+        q.append((now, member.id))
         window = max(5, int(settings.get("raid_window_seconds", 20)))
-        while q and now - q[0] > window:
+        while q and now - q[0][0] > window:
             q.popleft()
         threshold = max(3, int(settings.get("raid_join_threshold", 8)))
         if len(q) < threshold:
@@ -207,15 +207,23 @@ class ProtectorGuard(commands.Cog):
         if now < self.cooldowns.get(("raid", member.guild.id), 0):
             return
         self.cooldowns[("raid", member.guild.id)] = now + 60
+
+        recent_ids = list(dict.fromkeys(member_id for joined_at, member_id in q if now - joined_at <= window))
         action = "detected"
-        if settings.get("raid_action", "timeout") == "timeout" and member.guild.me and member.guild.me.guild_permissions.moderate_members and member.top_role < member.guild.me.top_role:
-            try:
-                minutes = max(1, min(40320, int(settings.get("raid_timeout_minutes", 10))))
-                await member.timeout(timedelta(minutes=minutes), reason="Anti-raid protection")
-                action = f"timeout {minutes}m"
-            except (discord.Forbidden, discord.HTTPException):
-                action = "timeout_failed"
-        await self._log(member.guild, "Anti-Raid", f"Join burst: {len(q)} members in {window}s\nLatest: {member.mention}\nAction: {action}", member, discord.Color.red())
+        punished = 0
+        if settings.get("raid_action", "timeout") == "timeout" and member.guild.me and member.guild.me.guild_permissions.moderate_members:
+            minutes = max(1, min(40320, int(settings.get("raid_timeout_minutes", 10))))
+            for member_id in recent_ids:
+                target = member.guild.get_member(member_id)
+                if not target or target.bot or target == member.guild.owner or target.top_role >= member.guild.me.top_role:
+                    continue
+                try:
+                    await target.timeout(timedelta(minutes=minutes), reason="Anti-raid protection")
+                    punished += 1
+                except (discord.Forbidden, discord.HTTPException):
+                    continue
+            action = f"timeout {minutes}m ({punished}/{len(recent_ids)} members)"
+        await self._log(member.guild, "Anti-Raid", f"Join burst: {len(recent_ids)} members in {window}s\nLatest: {member.mention}\nAction: {action}", member, discord.Color.red())
 
     @commands.Cog.listener()
     async def on_guild_channel_create(self, channel):
