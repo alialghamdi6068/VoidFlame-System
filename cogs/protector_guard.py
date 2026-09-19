@@ -60,7 +60,7 @@ class ProtectorGuard(commands.Cog):
     def _ignored(self, message, settings):
         if not settings.get("protection_enabled", True):
             return True
-        if message.author.bot or message.webhook_id or message.author.guild_permissions.administrator:
+        if message.author.bot or message.webhook_id:
             return True
         if message.channel.id in self._ids(settings.get("protection_ignore_channels", [])):
             return True
@@ -89,17 +89,49 @@ class ProtectorGuard(commands.Cog):
             return "failed"
         return "unavailable"
 
-    async def _actor(self, guild, action, target_id=None):
-        try:
-            async for entry in guild.audit_logs(limit=10, action=action):
-                age = (discord.utils.utcnow() - entry.created_at).total_seconds()
-                if age > 20:
-                    break
-                if target_id is None or getattr(entry.target, "id", None) == target_id:
-                    return entry.user
-        except (discord.Forbidden, discord.HTTPException):
-            pass
+    async def _actor(self, guild, action, target_id=None, retries=2):
+        # Audit-log entries can arrive a moment after the Discord event.
+        for attempt in range(max(1, retries + 1)):
+            try:
+                newest = None
+                async for entry in guild.audit_logs(limit=15, action=action):
+                    age = (discord.utils.utcnow() - entry.created_at).total_seconds()
+                    if age > 30:
+                        break
+                    if target_id is not None and getattr(entry.target, "id", None) != target_id:
+                        continue
+                    if newest is None or entry.created_at > newest.created_at:
+                        newest = entry
+                if newest:
+                    return newest.user
+            except (discord.Forbidden, discord.HTTPException):
+                return None
+            if attempt < retries:
+                await asyncio.sleep(0.8)
         return None
+
+    async def _recent_webhook_actor(self, guild, channel_id):
+        candidates = []
+        for action in (
+            discord.AuditLogAction.webhook_create,
+            discord.AuditLogAction.webhook_update,
+            discord.AuditLogAction.webhook_delete,
+        ):
+            try:
+                async for entry in guild.audit_logs(limit=15, action=action):
+                    age = (discord.utils.utcnow() - entry.created_at).total_seconds()
+                    if age > 30:
+                        break
+                    target = getattr(entry, "target", None)
+                    target_channel = getattr(target, "channel_id", None)
+                    if target_channel is None or target_channel == channel_id:
+                        candidates.append(entry)
+                        break
+            except (discord.Forbidden, discord.HTTPException):
+                continue
+        if not candidates:
+            return None
+        return max(candidates, key=lambda entry: entry.created_at).user
 
     async def _lockdown(self, guild):
         changed = 0
@@ -262,11 +294,7 @@ class ProtectorGuard(commands.Cog):
         settings = settings_cache.get(channel.guild.id)
         if not settings.get("webhook_protection", True):
             return
-        actor = await self._actor(channel.guild, discord.AuditLogAction.webhook_create)
-        if not actor:
-            actor = await self._actor(channel.guild, discord.AuditLogAction.webhook_update)
-        if not actor:
-            actor = await self._actor(channel.guild, discord.AuditLogAction.webhook_delete)
+        actor = await self._recent_webhook_actor(channel.guild, channel.id)
         if actor and not self._trusted(actor, settings):
             action = "logged"
             if settings.get("mass_change_action", "log") == "kick" and channel.guild.me and channel.guild.me.guild_permissions.kick_members and actor != channel.guild.owner and actor.top_role < channel.guild.me.top_role:
