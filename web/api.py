@@ -201,7 +201,16 @@ def register_api(app, bot):
                     if not low <= value <= high:
                         return jsonify({'ok': False, 'error': f'القيمة خارج النطاق المسموح: {key}'}), 400
             elif key in BOOLEAN_SETTINGS:
-                value = bool(value)
+                if isinstance(value, bool):
+                    value = value
+                elif isinstance(value, (int, float)) and value in (0, 1):
+                    value = bool(value)
+                elif isinstance(value, str) and value.strip().lower() in {'true', '1', 'yes', 'on'}:
+                    value = True
+                elif isinstance(value, str) and value.strip().lower() in {'false', '0', 'no', 'off'}:
+                    value = False
+                else:
+                    return jsonify({'ok': False, 'error': f'القيمة المنطقية غير صحيحة: {key}'}), 400
             elif key in STRING_SETTINGS:
                 value = str(value).strip().lower()
                 allowed = {'mass_change_action': {'log', 'kick'}, 'raid_action': {'timeout', 'log'}, 'protection_action': {'timeout', 'kick'}}[key]
