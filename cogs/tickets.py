@@ -251,7 +251,7 @@ class Tickets(commands.Cog):
         category = guild.get_channel(int(category_id)) if category_id else None
         category = category if isinstance(category, discord.CategoryChannel) else None
         support_role = guild.get_role(int(support_role_id)) if support_role_id else None
-        existing = discord.utils.find(lambda c: c.topic == f'flame-ticket-user:{user.id}', guild.text_channels)
+        existing = discord.utils.find(lambda c: c.topic == f'flame-ticket-user:{user.id}' and self.is_ticket_channel(c), guild.text_channels)
         if existing:
             return await interaction.response.send_message(f'❌ عندك تذكرة مفتوحة بالفعل: {existing.mention}', ephemeral=True)
         try:
