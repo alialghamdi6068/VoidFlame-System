@@ -37,15 +37,17 @@ class Giveaways(commands.Cog):
         ends_at = time.time() + duration
         embed = discord.Embed(title='🎉 قيفاواي', description=f'**الجائزة:** {prize}\n**الفائزون:** {winners}\n**ينتهي:** <t:{int(ends_at)}:R>', color=discord.Color.blurple())
         embed.set_footer(text=f'بدأه {author}')
+        message = None
         try:
             message = await channel.send(embed=embed)
             await message.add_reaction('🎉')
         except (discord.Forbidden, discord.HTTPException):
-            try:
-                await message.delete()
-            except (UnboundLocalError, discord.Forbidden, discord.HTTPException):
-                pass
-            raise
+            if message is not None:
+                try:
+                    await message.delete()
+                except (discord.Forbidden, discord.HTTPException):
+                    pass
+            return None
         with connection() as conn:
             conn.execute('INSERT INTO giveaways(guild_id,channel_id,message_id,prize,winners,ends_at) VALUES(?,?,?,?,?,?)', (guild.id, channel.id, message.id, prize, winners, ends_at))
         log_activity(guild.id, 'giveaway_create', f'{prize} | {winners}', author.id)
@@ -115,6 +117,8 @@ class Giveaways(commands.Cog):
         created = await self.create_giveaway(ctx.guild, ctx.channel, ctx.author, seconds, winners, prize[:200])
         if created is False:
             return await ctx.reply('❌ نظام القيفاواي متوقف حاليًا.')
+        if created is None:
+            return await ctx.reply('❌ تعذر إنشاء القيفاواي. تأكد من صلاحيات البوت في الروم المحدد.')
         await ctx.reply('✅ تم إنشاء القيفاواي.', delete_after=5)
 
     @app_commands.command(name='giveaway', description='Create a giveaway')
@@ -130,6 +134,8 @@ class Giveaways(commands.Cog):
         created = await self.create_giveaway(interaction.guild, interaction.channel, interaction.user, seconds, winners, prize[:200])
         if created is False:
             return await interaction.response.send_message('❌ نظام القيفاواي متوقف حاليًا.', ephemeral=True)
+        if created is None:
+            return await interaction.response.send_message('❌ تعذر إنشاء القيفاواي. تأكد من صلاحيات البوت في الروم المحدد.', ephemeral=True)
         await interaction.response.send_message('✅ تم إنشاء القيفاواي.', ephemeral=True)
 
     @commands.command(name='انهاء')
