@@ -18,7 +18,6 @@ class ProtectorGuard(commands.Cog):
         self.mentions = defaultdict(deque)
         self.joins = defaultdict(deque)
         self.actions = defaultdict(deque)
-        self.actor_actions = defaultdict(lambda: defaultdict(deque))
         self.cooldowns = {}
         self._cleanup_task = asyncio.create_task(self._cleanup())
 
@@ -196,6 +195,9 @@ class ProtectorGuard(commands.Cog):
         self.cooldowns[cooldown_key] = now + 45
         if actor is None:
             actor = await self._actor(guild, audit_action, target_id)
+        if actor and actor.id == self.bot.user.id:
+            await self._log(guild, title + " Burst", f"Detected {len(q)} events in {window}s\nActor: bot itself; no punishment.", actor, discord.Color.orange())
+            return
         if actor and self._trusted(actor, settings):
             await self._log(guild, title + " Burst", f"Detected {len(q)} events in {window}s\nActor: {actor.mention}\nActor is trusted; no punishment.", actor, discord.Color.orange())
             return
@@ -227,7 +229,7 @@ class ProtectorGuard(commands.Cog):
             q.popleft()
         if len(q) >= limit and now >= self.cooldowns.get(("spam", key), 0):
             self.cooldowns[("spam", key)] = now + 15
-            if message.channel.permissions_for(message.guild.me).manage_messages:
+            if message.guild.me and message.channel.permissions_for(message.guild.me).manage_messages:
                 try:
                     await message.delete()
                 except discord.HTTPException:
@@ -243,7 +245,7 @@ class ProtectorGuard(commands.Cog):
                 mq.popleft()
             if now >= self.cooldowns.get(("mention", key), 0):
                 self.cooldowns[("mention", key)] = now + 20
-                if message.channel.permissions_for(message.guild.me).manage_messages:
+                if message.guild.me and message.channel.permissions_for(message.guild.me).manage_messages:
                     try:
                         await message.delete()
                     except discord.HTTPException:
