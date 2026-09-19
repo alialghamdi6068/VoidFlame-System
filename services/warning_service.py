@@ -4,6 +4,17 @@ from database import connection, get_guild_data, log_activity
 
 
 async def issue_warning(guild, member, moderator, reason, bot=None):
+    # Do not allow moderation commands to target the owner, the bot itself,
+    # or members at/above the bot's highest role.
+    if member == guild.owner:
+        raise ValueError("target_owner")
+    if member == guild.me:
+        raise ValueError("target_bot")
+    me = guild.me
+    if me is not None and member.top_role >= me.top_role:
+        raise ValueError("member_hierarchy")
+    if member == moderator:
+        raise ValueError("target_self")
     reason = (reason or "بدون سبب").strip()[:1000]
     with connection() as conn:
         conn.execute(
