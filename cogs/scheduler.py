@@ -17,7 +17,7 @@ class Scheduler(commands.Cog):
     async def loop(self):
         with connection() as conn:
             rows=conn.execute('SELECT * FROM schedules WHERE sent=0 AND due_at<=?',(time.time(),)).fetchall()
-            for row in rows: conn.execute('UPDATE schedules SET sent=1 WHERE id=?',(row['id'],))
+            for row in rows: conn.execute('UPDATE schedules SET sent=1 WHERE id=? AND sent=0',(row['id'],))
         for row in rows:
             if get_guild_data(row['guild_id']).get('scheduler_enabled', True) is False:
                 continue
@@ -26,9 +26,16 @@ class Scheduler(commands.Cog):
             if guild:
                 configured=get_guild_data(guild.id).get('scheduler_channel_id')
                 if configured: channel=guild.get_channel(int(configured))
-            if isinstance(channel,discord.TextChannel):
-                try: await channel.send(row['text'])
-                except discord.HTTPException: pass
+            delivered = False
+            if isinstance(channel, discord.TextChannel):
+                try:
+                    await channel.send(row['text'])
+                    delivered = True
+                except discord.HTTPException:
+                    pass
+            if not delivered:
+                with connection() as conn:
+                    conn.execute('UPDATE schedules SET sent=0 WHERE id=?',(row['id'],))
     @loop.before_loop
     async def before_loop(self): await self.bot.wait_until_ready()
     @commands.command(name='جدولة')
