@@ -78,6 +78,10 @@ def _valid_resource(guild, key, value):
         return any(role.id == value and not role.is_default() for role in guild.roles)
     if key == 'ticket_category_id':
         return any(category.id == value for category in guild.categories)
+    if key == 'ticket_support_role_id':
+        return any(role.id == value and not role.is_default() for role in guild.roles)
+    if key == 'ticket_panel_channel_id':
+        return any(isinstance(channel, __import__('discord').TextChannel) and channel.id == value for channel in guild.channels)
     return any(channel.id == value for channel in guild.channels)
 
 
