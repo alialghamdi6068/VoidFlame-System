@@ -15,7 +15,12 @@ class ApplicationReviewView(discord.ui.View):
         embed=interaction.message.embeds[0] if interaction.message.embeds else discord.Embed()
         embed.color=discord.Color.green() if status=='accepted' else discord.Color.red(); embed.set_footer(text=f'الحالة: {label} بواسطة {interaction.user}')
         for item in self.children: item.disabled=True
-        await interaction.message.edit(embed=embed,view=self)
+        try:
+            await interaction.message.edit(embed=embed,view=self)
+        except discord.HTTPException:
+            with connection() as conn:
+                conn.execute('UPDATE applications SET status=?, reviewed_at=NULL WHERE id=? AND guild_id=?',('pending',self.application_id,interaction.guild.id))
+            return await interaction.response.send_message('❌ تعذر تحديث رسالة التقديم. لم يتم اعتماد التغيير.',ephemeral=True)
         user=interaction.guild.get_member(row['user_id'])
         if user:
             try: await user.send(f'📨 بخصوص تقديمك في **{interaction.guild.name}**: **{label}**.')
