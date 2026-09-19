@@ -11,7 +11,6 @@ class AIGuard(commands.Cog):
     def __init__(self, bot):
         self.bot=bot
         self.engine=ModerationEngine()
-        self.seen=set()
         self.cooldowns=defaultdict(float)
 
     def ignored(self,message,settings):
@@ -20,7 +19,7 @@ class AIGuard(commands.Cog):
         if message.channel.id in {int(x) for x in settings.get("ai_ignore_channels",[]) if str(x).isdigit()}:
             return True
         ignored_roles={int(x) for x in settings.get("ai_ignore_roles",[]) if str(x).isdigit()}
-        return message.author.guild_permissions.administrator or any(r.id in ignored_roles for r in message.author.roles)
+        return bool(ignored_roles & {r.id for r in message.author.roles})
 
     async def log(self,guild,title,description,actor=None,color=None):
         logs=self.bot.get_cog("Logs")
@@ -34,11 +33,8 @@ class AIGuard(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self,message):
-        if not message.guild or not message.content.strip() or message.id in self.seen:
+        if not message.guild or not message.content.strip():
             return
-        self.seen.add(message.id)
-        if len(self.seen)>5000:
-            self.seen.clear()
         try:
             settings=settings_cache.get(message.guild.id)
             if self.ignored(message,settings): return
