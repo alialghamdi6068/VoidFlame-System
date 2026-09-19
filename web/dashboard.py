@@ -63,8 +63,10 @@ def manageable_guilds(bot):
 
 def require_guild(guild_id, bot):
     guild = bot.get_guild(guild_id)
-    if not guild: abort(404)
-    if not can_manage_guild(guild): abort(403)
+    if not guild:
+        abort(404, description='البوت غير موجود في هذا السيرفر. أضف VoidFlame أولًا ثم افتح لوحة التحكم.')
+    if not can_manage_guild(guild):
+        abort(403)
     return guild
 
 
