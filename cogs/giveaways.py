@@ -37,8 +37,15 @@ class Giveaways(commands.Cog):
         ends_at = time.time() + duration
         embed = discord.Embed(title='🎉 قيفاواي', description=f'**الجائزة:** {prize}\n**الفائزون:** {winners}\n**ينتهي:** <t:{int(ends_at)}:R>', color=discord.Color.blurple())
         embed.set_footer(text=f'بدأه {author}')
-        message = await channel.send(embed=embed)
-        await message.add_reaction('🎉')
+        try:
+            message = await channel.send(embed=embed)
+            await message.add_reaction('🎉')
+        except (discord.Forbidden, discord.HTTPException):
+            try:
+                await message.delete()
+            except (UnboundLocalError, discord.Forbidden, discord.HTTPException):
+                pass
+            raise
         with connection() as conn:
             conn.execute('INSERT INTO giveaways(guild_id,channel_id,message_id,prize,winners,ends_at) VALUES(?,?,?,?,?,?)', (guild.id, channel.id, message.id, prize, winners, ends_at))
         log_activity(guild.id, 'giveaway_create', f'{prize} | {winners}', author.id)
@@ -147,10 +154,12 @@ class Giveaways(commands.Cog):
     @commands.has_permissions(manage_guild=True)
     async def reroll_prefix(self, ctx, message_id: int):
         with connection() as conn:
-            row = conn.execute('SELECT * FROM giveaways WHERE guild_id=? AND message_id=?', (ctx.guild.id, message_id)).fetchone()
+            row = conn.execute('SELECT * FROM giveaways WHERE guild_id=? AND message_id=? AND ended=1', (ctx.guild.id, message_id)).fetchone()
         if not row:
-            return await ctx.reply('❌ ما لقيت القيفاواي.')
-        await self.finish(row, reroll=True)
+            return await ctx.reply('❌ القيفاواي غير موجود أو لم ينتهِ بعد.')
+        finished = await self.finish(row, reroll=True)
+        if finished is None or not finished:
+            return await ctx.reply('❌ تعذر إعادة السحب الآن.')
         logs=self.bot.get_cog('Logs')
         if logs: await logs.send_log(ctx.guild, 'Giveaway Reroll', f'Message: {message_id}', actor=ctx.author)
         await ctx.reply('🔄 تم اختيار فائز جديد.', delete_after=5)
