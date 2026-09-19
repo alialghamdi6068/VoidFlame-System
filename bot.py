@@ -92,6 +92,12 @@ async def on_message(message):
 @bot.event
 async def on_ready():
     settings_cache.clear()
+    tickets = bot.get_cog("Tickets")
+    if tickets:
+        try:
+            tickets.register_persistent_views()
+        except Exception as exc:
+            print(f"[{BOT_NAME}] Ticket view registration failed: {type(exc).__name__}: {exc}")
     print(f"[{BOT_NAME}] Logged in as {bot.user} | Guilds: {len(bot.guilds)}")
     for guild in bot.guilds:
         print(f"[{BOT_NAME}] Guild: {guild.name} ({guild.id})")
