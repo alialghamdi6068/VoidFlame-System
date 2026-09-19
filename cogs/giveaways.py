@@ -131,11 +131,13 @@ class Giveaways(commands.Cog):
     async def end_prefix(self, ctx, message_id: int):
         with connection() as conn:
             row = conn.execute('SELECT * FROM giveaways WHERE guild_id=? AND message_id=? AND ended=0', (ctx.guild.id, message_id)).fetchone()
-            if row:
-                conn.execute('UPDATE giveaways SET ended=1 WHERE id=?', (row['id'],))
         if not row:
             return await ctx.reply('❌ ما لقيت قيفاواي شغال بهذا الرقم.')
-        await self.finish(row)
+        finished = await self.finish(row)
+        if finished is None:
+            return await ctx.reply('❌ تعذر إنهاء القيفاواي الآن. لم يتم إغلاقه، حاول مرة أخرى.')
+        with connection() as conn:
+            conn.execute('UPDATE giveaways SET ended=1 WHERE id=? AND ended=0', (row['id'],))
         logs=self.bot.get_cog('Logs')
         if logs: await logs.send_log(ctx.guild, 'Giveaway End', f'Message: {message_id}', actor=ctx.author)
         await ctx.reply('✅ تم إنهاء القيفاواي.', delete_after=5)
