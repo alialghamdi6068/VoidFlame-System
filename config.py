@@ -1,5 +1,4 @@
 import os
-import secrets
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -14,7 +13,7 @@ DISCORD_TOKEN = os.getenv("DISCORD_TOKEN", "").strip()
 DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID", "").strip()
 DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET", "").strip()
 DISCORD_REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI", "").strip()
-SESSION_SECRET = os.getenv("SESSION_SECRET", "").strip() or secrets.token_urlsafe(48)
+SESSION_SECRET = os.getenv("SESSION_SECRET", "").strip()
 
 PORT = int(os.getenv("PORT", "10000"))
 HOST = os.getenv("HOST", "0.0.0.0")
@@ -28,3 +27,5 @@ SUPPORT_SERVER_URL = "https://discord.gg/jH3vwYJyaB"
 
 if not DISCORD_TOKEN:
     raise RuntimeError("DISCORD_TOKEN is missing. Add it to the hosting environment variables.")
+if not SESSION_SECRET:
+    raise RuntimeError("SESSION_SECRET is missing. Add a persistent random secret to the hosting environment variables.")
