@@ -1,3 +1,4 @@
+import asyncio
 import random
 import re
 from datetime import datetime, timezone
@@ -244,7 +245,7 @@ class ExtraCommands(commands.Cog):
         if not url.startswith(('http://', 'https://')):
             return await ctx.reply('❌ أرسل رابطًا يبدأ بـ `https://` أو `http://`.')
         try:
-            response = requests.get('https://is.gd/create.php', params={'format': 'simple', 'url': url}, timeout=8)
+            response = await asyncio.to_thread(requests.get, 'https://is.gd/create.php', params={'format': 'simple', 'url': url}, timeout=8)
             short = response.text.strip()
             if response.ok and short.startswith('http'):
                 await ctx.reply(f'🔗 الرابط المختصر: {short}')
@@ -260,7 +261,7 @@ class ExtraCommands(commands.Cog):
         if not re.fullmatch(r'[a-z]{2,5}', lang):
             return await ctx.reply('❌ استخدم لغة مثل `ar` أو `en`.')
         try:
-            response = requests.get('https://api.mymemory.translated.net/get', params={'q': text[:450], 'langpair': f'auto|{lang}'}, timeout=10)
+            response = await asyncio.to_thread(requests.get, 'https://api.mymemory.translated.net/get', params={'q': text[:450], 'langpair': f'auto|{lang}'}, timeout=10)
             data = response.json()
             translated = data.get('responseData', {}).get('translatedText')
             if not translated:
@@ -275,7 +276,7 @@ class ExtraCommands(commands.Cog):
             return await ctx.reply('❌ النص طويل جدًا.')
         url = 'https://api.qrserver.com/v1/create-qr-code/'
         try:
-            response = requests.get(url, params={'size': '300x300', 'data': text}, timeout=10)
+            response = await asyncio.to_thread(requests.get, url, params={'size': '300x300', 'data': text}, timeout=10)
             if not response.ok:
                 raise requests.RequestException
             from io import BytesIO
@@ -292,7 +293,7 @@ class ExtraCommands(commands.Cog):
         }
         zone = zones.get(city, city)
         try:
-            response = requests.get(f'https://worldtimeapi.org/api/timezone/{zone}', timeout=8)
+            response = await asyncio.to_thread(requests.get, f'https://worldtimeapi.org/api/timezone/{zone}', timeout=8)
             data = response.json()
             dt = data.get('datetime', '')[:19].replace('T', ' ')
             await ctx.reply(f'🌍 الوقت في **{city}**: **{dt}**')
