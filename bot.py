@@ -28,6 +28,7 @@ SYSTEM_COGS = [
     "event_logger", "protector_guard",
 ]
 bot.system_extensions = [f"cogs.{name}" for name in SYSTEM_COGS] + ["maintenance"]
+bot._slash_synced = False
 
 app = create_app(bot)
 
@@ -101,11 +102,13 @@ async def on_ready():
     print(f"[{BOT_NAME}] Logged in as {bot.user} | Guilds: {len(bot.guilds)}")
     for guild in bot.guilds:
         print(f"[{BOT_NAME}] Guild: {guild.name} ({guild.id})")
-    try:
-        synced = await bot.tree.sync()
-        print(f"[{BOT_NAME}] Synced {len(synced)} slash commands.")
-    except Exception as exc:
-        print(f"[{BOT_NAME}] Slash sync failed: {type(exc).__name__}: {exc}")
+    if not bot._slash_synced:
+        try:
+            synced = await bot.tree.sync()
+            bot._slash_synced = True
+            print(f"[{BOT_NAME}] Synced {len(synced)} slash commands.")
+        except Exception as exc:
+            print(f"[{BOT_NAME}] Slash sync failed: {type(exc).__name__}: {exc}")
 
 
 @bot.tree.interaction_check
