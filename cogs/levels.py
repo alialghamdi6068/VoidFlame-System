@@ -33,7 +33,7 @@ class Levels(commands.Cog):
 
         # Slower progression by default: longer cooldown, less XP per message,
         # and a larger XP curve. Existing dashboard settings are still respected.
-        cooldown = max(90, int(settings.get('level_cooldown', 90) or 90))
+        cooldown = max(5, int(settings.get('level_cooldown', 90) or 90))
         minimum = max(1, int(settings.get('xp_min', 5) or 5))
         maximum = max(minimum, int(settings.get('xp_max', 10) or 10))
         now = time.time()
