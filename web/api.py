@@ -249,6 +249,13 @@ def register_api(app, bot):
                         'minutes': max(1, min(40320, minutes))
                     }
             data['warning_escalation'] = clean
+        if data.get('xp_min') is not None and data.get('xp_max') is not None and int(data['xp_min']) > int(data['xp_max']):
+            return jsonify({'ok': False, 'error': 'الحد الأدنى للـXP لا يمكن أن يكون أكبر من الحد الأقصى.'}), 400
+        score_values = [data.get('ai_min_score'), data.get('ai_medium_score'), data.get('ai_high_score')]
+        if all(value is not None for value in score_values):
+            minimum, medium, high = map(int, score_values)
+            if not minimum <= medium <= high:
+                return jsonify({'ok': False, 'error': 'ترتيب درجات الحماية الذكية غير صحيح.'}), 400
         data.pop('ticket_panel_footer', None)
         update_guild_data(guild_id, **data)
         settings_cache.invalidate(guild_id)
