@@ -320,6 +320,9 @@ class ProtectorGuard(commands.Cog):
         if before.verification_level != after.verification_level: changed.append('verification')
         if not changed: return
         actor = await self._actor(after, discord.AuditLogAction.guild_update)
+        if actor and self.bot.user and actor.id == self.bot.user.id:
+            await self._log(after, 'Guild Security', f"Changes: {', '.join(changed)}\\nActor: bot itself; no punishment.", actor, discord.Color.orange())
+            return
         if actor and self._trusted(actor, settings):
             await self._log(after, 'Guild Security', f"Changes: {', '.join(changed)}\\nActor: {actor.mention}\\nTrusted: yes", actor, discord.Color.orange())
             return
