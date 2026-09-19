@@ -12,15 +12,42 @@ class AFK(commands.Cog):
     async def on_message(self, message):
         if not message.guild or message.author.bot:
             return
+        own = None
+        mentioned_afk = []
         with connection() as conn:
-            own = conn.execute('SELECT reason FROM afk WHERE guild_id=? AND user_id=?', (message.guild.id, message.author.id)).fetchone()
+            own = conn.execute(
+                'SELECT reason FROM afk WHERE guild_id=? AND user_id=?',
+                (message.guild.id, message.author.id),
+            ).fetchone()
             if own:
-                conn.execute('DELETE FROM afk WHERE guild_id=? AND user_id=?', (message.guild.id, message.author.id))
-                await message.channel.send(f'👋 رجعت يا {message.author.mention}! تم إلغاء حالة الغياب.', delete_after=5)
+                conn.execute(
+                    'DELETE FROM afk WHERE guild_id=? AND user_id=?',
+                    (message.guild.id, message.author.id),
+                )
             for target in message.mentions[:5]:
-                row = conn.execute('SELECT reason FROM afk WHERE guild_id=? AND user_id=?', (message.guild.id, target.id)).fetchone()
+                row = conn.execute(
+                    'SELECT reason FROM afk WHERE guild_id=? AND user_id=?',
+                    (message.guild.id, target.id),
+                ).fetchone()
                 if row:
-                    await message.channel.send(f'💤 {target.mention} حالياً غائب: {row["reason"]}', delete_after=6)
+                    mentioned_afk.append((target, row['reason']))
+
+        if own:
+            try:
+                await message.channel.send(
+                    f'👋 رجعت يا {message.author.mention}! تم إلغاء حالة الغياب.',
+                    delete_after=5,
+                )
+            except discord.HTTPException:
+                pass
+        for target, reason in mentioned_afk:
+            try:
+                await message.channel.send(
+                    f'💤 {target.mention} حالياً غائب: {reason}',
+                    delete_after=6,
+                )
+            except discord.HTTPException:
+                pass
 
     async def set_afk(self, guild, user, reason):
         with connection() as conn:
