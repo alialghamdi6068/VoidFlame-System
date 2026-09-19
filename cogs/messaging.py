@@ -14,7 +14,7 @@ class Messaging(commands.Cog):
         if not text.strip():
             return await ctx.reply('❌ اكتب الرسالة التي تريد إرسالها.')
         try:
-            await member.send(text[:2000], allowed_mentions=discord.AllowedMentions(everyone=True, users=True, roles=True))
+            await member.send(text[:2000], allowed_mentions=discord.AllowedMentions.none())
         except discord.Forbidden:
             return await ctx.reply('❌ تعذر إرسال الرسالة الخاصة لهذا العضو.')
         except discord.HTTPException:
