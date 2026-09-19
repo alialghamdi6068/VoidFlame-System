@@ -64,6 +64,18 @@ function addProtectionSettings(){
     initialState=snapshot(); markChanged();
   }).catch(()=>{});
 }
+function buildWarningEscalationPayload(p){
+  const rules={};
+  form?.querySelectorAll('[data-warning-level]').forEach(action=>{
+    const level=String(action.dataset.warningLevel||'').trim();
+    if(!/^[1-9]$|^10$/.test(level))return;
+    const minutesInput=form.querySelector(`[data-warning-minutes="${level}"]`);
+    let minutes=Number(minutesInput?.value||10);
+    if(!Number.isFinite(minutes))minutes=10;
+    rules[level]={action:action.value,minutes:Math.max(1,Math.min(40320,Math.trunc(minutes)))};
+  });
+  if(Object.keys(rules).length)p.warning_escalation=rules;
+}
 function buildSpecialPayload(p){
   ['trusted_user_ids','trusted_role_ids','protection_ignore_channels','protection_ignore_roles','ai_ignore_channels','ai_ignore_roles'].forEach(k=>{
     if(p[k]!==undefined)p[k]=String(p[k]).split(',').map(x=>x.trim()).filter(x=>/^\d+$/.test(x)).slice(0,100);
@@ -80,7 +92,7 @@ removeTicketFooterField();
 addSystemToggle();
 addVariablePanel();
 addProtectionSettings();
-if(form){form.addEventListener('input',markChanged);form.addEventListener('change',markChanged);form.addEventListener('submit',async e=>{e.preventDefault();if(snapshot()===initialState)return;if(saveButton)saveButton.disabled=true;const p={};new FormData(form).forEach((v,k)=>p[k]=v);form.querySelectorAll('input[type=checkbox]').forEach(x=>p[x.name]=x.checked);['xp_min','xp_max','level_cooldown','log_rate_limit','spam_window_seconds','spam_message_limit','mention_limit','raid_window_seconds','raid_join_threshold','raid_timeout_minutes','mass_change_window_seconds','mass_change_threshold','protection_timeout_minutes'].forEach(k=>{if(p[k]!==undefined&&p[k]!=='')p[k]=Number(p[k]);});buildSpecialPayload(p);try{const d=await save(p);if(d.ok){initialState=snapshot();if(saveButton){saveButton.hidden=true;saveButton.disabled=true;}if(result)result.textContent='✓ تم الحفظ بنجاح.';}else{if(saveButton)saveButton.disabled=false;if(result)result.textContent='✕ '+(d.error||'تعذر الحفظ');}}catch(err){if(saveButton)saveButton.disabled=false;if(result)result.textContent=err.message==='csrf'?'✕ انتهت جلسة الأمان، حدّث الصفحة ثم حاول مرة أخرى.':'✕ تعذر الاتصال بالسيرفر.';}});}
+if(form){form.addEventListener('input',markChanged);form.addEventListener('change',markChanged);form.addEventListener('submit',async e=>{e.preventDefault();if(snapshot()===initialState)return;if(saveButton)saveButton.disabled=true;const p={};new FormData(form).forEach((v,k)=>p[k]=v);form.querySelectorAll('input[type=checkbox]').forEach(x=>p[x.name]=x.checked);['xp_min','xp_max','level_cooldown','log_rate_limit','spam_window_seconds','spam_message_limit','mention_limit','raid_window_seconds','raid_join_threshold','raid_timeout_minutes','mass_change_window_seconds','mass_change_threshold','protection_timeout_minutes'].forEach(k=>{if(p[k]!==undefined&&p[k]!=='')p[k]=Number(p[k]);});buildWarningEscalationPayload(p);buildSpecialPayload(p);try{const d=await save(p);if(d.ok){initialState=snapshot();if(saveButton){saveButton.hidden=true;saveButton.disabled=true;}if(result)result.textContent='✓ تم الحفظ بنجاح.';}else{if(saveButton)saveButton.disabled=false;if(result)result.textContent='✕ '+(d.error||'تعذر الحفظ');}}catch(err){if(saveButton)saveButton.disabled=false;if(result)result.textContent=err.message==='csrf'?'✕ انتهت جلسة الأمان، حدّث الصفحة ثم حاول مرة أخرى.':'✕ تعذر الاتصال بالسيرفر.';}});}
 markChanged();
 const add=document.getElementById('add-reply');if(add)add.onclick=async()=>{const t=document.getElementById('reply-trigger'),r=document.getElementById('reply-response');if(!t.value.trim()||!r.value.trim())return alert('اكتب الكلمة والرد أولاً.');const d=await save({autoreply_action:'add',trigger:t.value.trim(),response:r.value.trim()});if(d.ok)location.reload();else alert(d.error||'تعذر الإضافة');};
 document.querySelectorAll('.delete-reply').forEach(b=>b.onclick=async()=>{if(!confirm('حذف هذا الرد؟'))return;const d=await save({autoreply_action:'delete',trigger:b.dataset.trigger});if(d.ok)location.reload();else alert(d.error||'تعذر الحذف');});
