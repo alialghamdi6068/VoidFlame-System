@@ -178,24 +178,26 @@ def get_guild_data(guild_id):
 
 
 def set_guild_data(guild_id, data):
+    guild_id = int(guild_id)
     with connection() as conn:
         conn.execute(
             "INSERT INTO guild_settings(guild_id,data) VALUES(?,?) "
             "ON CONFLICT(guild_id) DO UPDATE SET data=excluded.data",
             (guild_id, json.dumps(data, ensure_ascii=False)),
         )
+    # Keep every write path consistent, including callers that use set_guild_data
+    # directly instead of update_guild_data.
+    try:
+        from services.settings_cache import settings_cache
+        settings_cache.invalidate(guild_id)
+    except Exception:
+        pass
 
 
 def update_guild_data(guild_id, **changes):
     data = get_guild_data(guild_id)
     data.update(changes)
     set_guild_data(guild_id, data)
-    # Lazy import avoids a database <-> cache import cycle.
-    try:
-        from services.settings_cache import settings_cache
-        settings_cache.invalidate(guild_id)
-    except Exception:
-        pass
     return data
 
 
