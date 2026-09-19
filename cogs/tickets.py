@@ -104,6 +104,8 @@ class Tickets(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self._registered_panel_guilds = set()
+        self._base_ticket_view = None
+        self._panel_views = {}
 
     def get_panel_button_config(self, guild_id, index):
         try:
@@ -279,16 +281,28 @@ class Tickets(commands.Cog):
             return
         with connection() as conn:
             row = conn.execute('SELECT * FROM tickets WHERE channel_id=? AND status="open"', (channel.id,)).fetchone()
-            if not row:
-                return await reply('❌ هذه التذكرة مغلقة أو غير موجودة.')
-            if user.id != row['user_id'] and not user.guild_permissions.manage_channels:
-                return await reply('❌ ما عندك صلاحية إغلاق هذه التذكرة.')
-            conn.execute("UPDATE tickets SET status='closed', closed_at=CURRENT_TIMESTAMP WHERE channel_id=?", (channel.id,))
-        await self.write_ticket_log(guild, f'🔒 تم إغلاق `{channel.name}` بواسطة {user.mention}.')
-        log_activity(guild.id, 'ticket_close', str(channel), user.id)
-        await confirm('🔒 سيتم إغلاق التذكرة.')
-        await channel.delete(reason=f'Ticket closed by {user}')
-
+        if not row:
+            return await reply('❌ هذه التذكرة مغلقة أو غير موجودة.')
+        if user.id != row['user_id'] and not user.guild_permissions.manage_channels:
+            return await reply('❌ ما عندك صلاحية إغلاق هذه التذكرة.')
+        try:
+            with connection() as conn:
+                conn.execute("UPDATE tickets SET status='closed', closed_at=CURRENT_TIMESTAMP WHERE channel_id=? AND status='open'", (channel.id,))
+            await confirm('🔒 سيتم إغلاق التذكرة.')
+            await channel.delete(reason=f'Ticket closed by {user}')
+        except (discord.Forbidden, discord.HTTPException):
+            with connection() as conn:
+                conn.execute("UPDATE tickets SET status='open', closed_at=NULL WHERE channel_id=?", (channel.id,))
+            return await reply('❌ ما قدرت أحذف قناة التذكرة. تأكد من صلاحية Manage Channels.')
+        except Exception:
+            with connection() as conn:
+                conn.execute("UPDATE tickets SET status='open', closed_at=NULL WHERE channel_id=?", (channel.id,))
+            return await reply('❌ حدث خطأ أثناء إغلاق التذكرة.')
+        try:
+            await self.write_ticket_log(guild, f'🔒 تم إغلاق `{channel.name}` بواسطة {user.mention}.')
+            log_activity(guild.id, 'ticket_close', str(channel), user.id)
+        except Exception:
+            pass
     async def send_panel(self, ctx):
         settings = get_guild_data(ctx.guild.id)
         if settings.get('tickets_enabled', True) is False:
@@ -351,9 +365,9 @@ class Tickets(commands.Cog):
         if logs: await logs.send_log(ctx.guild, 'Ticket Remove Member', f'Channel: {ctx.channel.mention}\nMember: {member.mention}', actor=ctx.author)
 
     def register_persistent_views(self):
-        if not getattr(self.bot, '_flame_ticket_base_view_added', False):
-            self.bot.add_view(TicketView(self))
-            self.bot._flame_ticket_base_view_added = True
+        if self._base_ticket_view is None:
+            self._base_ticket_view = TicketView(self)
+            self.bot.add_view(self._base_ticket_view)
         for guild in self.bot.guilds:
             if guild.id in self._registered_panel_guilds:
                 continue
@@ -361,11 +375,24 @@ class Tickets(commands.Cog):
             buttons = settings.get('ticket_buttons') if 'ticket_buttons' in settings else [{'label': '🎫 فتح تذكرة', 'style': 'success'}]
             if not isinstance(buttons, list):
                 buttons = []
-            self.bot.add_view(TicketPanelView(self, guild.id, buttons))
+            view = TicketPanelView(self, guild.id, buttons)
+            self.bot.add_view(view)
+            self._panel_views[guild.id] = view
             self._registered_panel_guilds.add(guild.id)
 
     def cog_unload(self):
-        self.bot._flame_ticket_base_view_added = False
+        if self._base_ticket_view is not None:
+            try:
+                self.bot.remove_view(self._base_ticket_view)
+            except Exception:
+                pass
+            self._base_ticket_view = None
+        for view in list(self._panel_views.values()):
+            try:
+                self.bot.remove_view(view)
+            except Exception:
+                pass
+        self._panel_views.clear()
         self._registered_panel_guilds.clear()
 
 
