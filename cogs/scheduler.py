@@ -24,6 +24,8 @@ class Scheduler(commands.Cog):
                 conn.execute('UPDATE schedules SET sent=1 WHERE id=? AND sent=0',(row['id'],))
         for row in rows:
             if get_guild_data(row['guild_id']).get('scheduler_enabled', True) is False:
+                with connection() as conn:
+                    conn.execute('UPDATE schedules SET sent=0 WHERE id=? AND sent=1', (row['id'],))
                 continue
             channel=self.bot.get_channel(row['channel_id'])
             guild=self.bot.get_guild(row['guild_id'])
