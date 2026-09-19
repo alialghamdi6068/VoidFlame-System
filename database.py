@@ -190,6 +190,12 @@ def update_guild_data(guild_id, **changes):
     data = get_guild_data(guild_id)
     data.update(changes)
     set_guild_data(guild_id, data)
+    # Lazy import avoids a database <-> cache import cycle.
+    try:
+        from services.settings_cache import settings_cache
+        settings_cache.invalidate(guild_id)
+    except Exception:
+        pass
     return data
 
 
