@@ -31,6 +31,15 @@ INTEGER_SETTINGS = {
     'announcements_channel_id', 'scheduler_channel_id', 'reminder_channel_id', 'afk_channel_id'
 }
 
+NUMERIC_LIMITS = {
+    'xp_min': (0, 100000), 'xp_max': (0, 100000), 'level_cooldown': (0, 86400), 'log_rate_limit': (5, 50),
+    'spam_window_seconds': (2, 60), 'spam_message_limit': (3, 30), 'mention_limit': (3, 30),
+    'raid_window_seconds': (5, 120), 'raid_join_threshold': (3, 50), 'raid_timeout_minutes': (1, 1440),
+    'mass_change_window_seconds': (5, 120), 'mass_change_threshold': (3, 30), 'protection_timeout_minutes': (1, 40320),
+    'ai_min_score': (0, 100), 'ai_medium_score': (1, 100), 'ai_high_score': (1, 100),
+    'ai_timeout_minutes': (1, 40320), 'ai_repeat_threshold': (2, 12), 'ai_action_cooldown_seconds': (5, 3600),
+}
+
 NUMERIC_SETTINGS = {
     'xp_min', 'xp_max', 'level_cooldown', 'log_rate_limit', 'spam_window_seconds', 'spam_message_limit',
     'mention_limit', 'raid_window_seconds', 'raid_join_threshold', 'raid_timeout_minutes',
@@ -188,6 +197,9 @@ def register_api(app, bot):
                         value = int(value)
                     except (TypeError, ValueError):
                         return jsonify({'ok': False, 'error': 'القيمة الرقمية غير صحيحة.'}), 400
+                    low, high = NUMERIC_LIMITS[key]
+                    if not low <= value <= high:
+                        return jsonify({'ok': False, 'error': f'القيمة خارج النطاق المسموح: {key}'}), 400
             elif key in BOOLEAN_SETTINGS:
                 value = bool(value)
             elif key in STRING_SETTINGS:
