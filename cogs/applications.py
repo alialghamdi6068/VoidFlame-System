@@ -94,6 +94,7 @@ class Applications(commands.Cog):
         with connection() as conn:
             row=conn.execute('SELECT * FROM applications WHERE id=? AND guild_id=?',(application_id,ctx.guild.id)).fetchone()
             if not row: return await ctx.reply('❌ التقديم غير موجود.')
+            if row['status'] != 'pending': return await ctx.reply('⚠️ هذا التقديم تمت مراجعته مسبقاً.')
             conn.execute('UPDATE applications SET status=?,reviewed_at=CURRENT_TIMESTAMP WHERE id=?',(status,application_id))
         label='مقبول' if status=='accepted' else 'مرفوض'; user=ctx.guild.get_member(row['user_id'])
         if user:
