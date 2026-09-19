@@ -61,7 +61,12 @@ class Suggestions(commands.Cog):
                 embed.set_field_at(1, name='الحالة', value=value)
             else:
                 embed.add_field(name='الحالة', value=value)
-            await message.edit(embed=embed)
+            try:
+                await message.edit(embed=embed)
+            except discord.HTTPException:
+                with connection() as conn:
+                    conn.execute('UPDATE suggestions SET status=? WHERE guild_id=? AND id=?',(row['status'],ctx.guild.id,suggestion_id))
+                return await ctx.reply('❌ تعذر تحديث رسالة الاقتراح. لم يتم اعتماد التغيير.')
         await ctx.reply('✅ تم تحديث حالة الاقتراح.')
         log_activity(ctx.guild.id, 'suggestion_review', f'#{suggestion_id} -> {status}', ctx.author.id)
         logs=self.bot.get_cog('Logs')
