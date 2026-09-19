@@ -28,13 +28,19 @@ class ProtectorGuard(commands.Cog):
         while True:
             await asyncio.sleep(60)
             now = time.monotonic()
-            for store in (self.messages, self.mentions, self.joins, self.actions):
+            for store in (self.messages, self.mentions, self.actions):
                 for key in list(store):
                     q = store[key]
                     while q and now - q[0] > 180:
                         q.popleft()
                     if not q:
                         store.pop(key, None)
+            for key in list(self.joins):
+                q = self.joins[key]
+                while q and now - q[0][0] > 180:
+                    q.popleft()
+                if not q:
+                    self.joins.pop(key, None)
             for key, until in list(self.cooldowns.items()):
                 if until <= now:
                     self.cooldowns.pop(key, None)
