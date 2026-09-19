@@ -4,6 +4,7 @@ from collections import defaultdict
 from datetime import timedelta
 from discord.ext import commands
 from database import connection
+from services.warning_service import issue_warning
 from services.settings_cache import settings_cache
 from services.moderation_engine import ModerationEngine
 
@@ -25,11 +26,6 @@ class AIGuard(commands.Cog):
         logs=self.bot.get_cog("Logs")
         if logs:
             await logs.send_log(guild,title,description,actor=actor,color=color)
-
-    def warn(self,guild,member,reason):
-        with connection() as conn:
-            conn.execute("INSERT INTO warnings(guild_id,user_id,moderator_id,reason) VALUES(?,?,?,?)",(guild.id,member.id,guild.me.id,reason))
-            return conn.execute("SELECT COUNT(*) c FROM warnings WHERE guild_id=? AND user_id=?",(guild.id,member.id)).fetchone()["c"]
 
     @commands.Cog.listener()
     async def on_message(self,message):
@@ -61,8 +57,15 @@ class AIGuard(commands.Cog):
                 else:
                     action="detected; timeout unavailable"
             elif r.score>=medium:
-                count=self.warn(message.guild,message.author,r.reason)
-                action=f"warning #{count}"
+                try:
+                    count, dm_sent, escalation = await issue_warning(message.guild, message.author, message.guild.me or self.bot.user, r.reason, self.bot)
+                    action=f"warning #{count}"
+                    if escalation != "warning":
+                        action += f" + {escalation}"
+                    if not dm_sent:
+                        action += " (DM unavailable)"
+                except ValueError:
+                    action="detected; warning target unavailable"
             await self.log(message.guild,"AI Moderation",f"Member: {message.author.mention}\nChannel: {message.channel.mention}\nScore: {r.score}/100\nConfidence: {r.confidence:.0%}\nCategory: {r.category}\nAction: {action}\nReason: {r.reason}\nContent: {message.content[:1000]}",message.author,discord.Color.red() if r.score>=high else discord.Color.orange())
         except Exception as exc:
             print(f"[VoidFlame AI] {type(exc).__name__}: {exc}")
