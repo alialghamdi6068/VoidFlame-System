@@ -16,8 +16,23 @@ class Suggestions(commands.Cog):
         embed = discord.Embed(title=f'💡 اقتراح #{suggestion_id}', description=content[:2000], color=discord.Color.blurple())
         embed.add_field(name='صاحب الاقتراح', value=user.mention)
         embed.add_field(name='الحالة', value='🟡 قيد المراجعة')
-        msg = await channel.send(embed=embed)
-        await msg.add_reaction('👍')
+        try:
+            msg = await channel.send(embed=embed)
+        except discord.HTTPException:
+            with connection() as conn:
+                conn.execute('DELETE FROM suggestions WHERE id=? AND guild_id=?',(suggestion_id,guild.id))
+            return None
+        try:
+            await msg.add_reaction('👍')
+            await msg.add_reaction('👎')
+        except discord.HTTPException:
+            try:
+                await msg.delete()
+            except discord.HTTPException:
+                pass
+            with connection() as conn:
+                conn.execute('DELETE FROM suggestions WHERE id=? AND guild_id=?',(suggestion_id,guild.id))
+            return None
         await msg.add_reaction('👎')
         with connection() as conn:
             conn.execute('UPDATE suggestions SET message_id=? WHERE id=?', (msg.id, suggestion_id))
