@@ -12,7 +12,11 @@ def _managed_guilds_from_token(token):
     if not token:
         return set()
     try:
-        response = requests.get(f'{DISCORD_API}/users/@me/guilds', headers={'Authorization': f'Bearer {token}'}, timeout=15)
+        response = requests.get(
+            f'{DISCORD_API}/users/@me/guilds',
+            headers={'Authorization': f'Bearer {token}'},
+            timeout=15,
+        )
         if response.status_code != 200:
             return set()
         allowed = set()
@@ -31,6 +35,38 @@ def _managed_guilds_from_token(token):
         return set()
 
 
+def _refresh_access_token():
+    oauth = session.get('oauth') or {}
+    refresh_token = oauth.get('refresh_token')
+    if not refresh_token or not DISCORD_CLIENT_ID or not DISCORD_CLIENT_SECRET:
+        return None
+    try:
+        response = requests.post(
+            f'{DISCORD_API}/oauth2/token',
+            data={
+                'client_id': DISCORD_CLIENT_ID,
+                'client_secret': DISCORD_CLIENT_SECRET,
+                'grant_type': 'refresh_token',
+                'refresh_token': refresh_token,
+            },
+            timeout=15,
+        )
+        if response.status_code != 200:
+            return None
+        token = response.json()
+        access_token = token.get('access_token')
+        if not isinstance(access_token, str) or not access_token:
+            return None
+        session['oauth'] = {
+            'access_token': access_token,
+            'refresh_token': token.get('refresh_token') or refresh_token,
+            'expires_at': time.time() + int(token.get('expires_in', 604800)),
+        }
+        return access_token
+    except (requests.RequestException, ValueError, TypeError):
+        return None
+
+
 def register_auth(app, bot):
     @app.get('/login')
     def login():
@@ -41,8 +77,16 @@ def register_auth(app, bot):
         session.clear()
         session['oauth_state'] = state
         csrf_token()
-        params = {'client_id': DISCORD_CLIENT_ID, 'redirect_uri': DISCORD_REDIRECT_URI, 'response_type': 'code', 'scope': 'identify guilds', 'state': state}
-        query = '&'.join(f'{k}={requests.utils.quote(str(v), safe="")}' for k, v in params.items())
+        params = {
+            'client_id': DISCORD_CLIENT_ID,
+            'redirect_uri': DISCORD_REDIRECT_URI,
+            'response_type': 'code',
+            'scope': 'identify guilds',
+            'state': state,
+        }
+        query = '&'.join(
+            f'{k}={requests.utils.quote(str(v), safe="")}' for k, v in params.items()
+        )
         return redirect(f'{DISCORD_API}/oauth2/authorize?{query}')
 
     @app.get('/callback')
@@ -57,7 +101,17 @@ def register_auth(app, bot):
             session.clear()
             return render_template('error.html'), 500
         try:
-            response = requests.post(f'{DISCORD_API}/oauth2/token', data={'client_id': DISCORD_CLIENT_ID, 'client_secret': DISCORD_CLIENT_SECRET, 'grant_type': 'authorization_code', 'code': code, 'redirect_uri': DISCORD_REDIRECT_URI}, timeout=15)
+            response = requests.post(
+                f'{DISCORD_API}/oauth2/token',
+                data={
+                    'client_id': DISCORD_CLIENT_ID,
+                    'client_secret': DISCORD_CLIENT_SECRET,
+                    'grant_type': 'authorization_code',
+                    'code': code,
+                    'redirect_uri': DISCORD_REDIRECT_URI,
+                },
+                timeout=15,
+            )
             if response.status_code != 200:
                 session.clear()
                 return render_template('error.html'), 500
@@ -66,15 +120,28 @@ def register_auth(app, bot):
             if not isinstance(access_token, str) or not access_token:
                 session.clear()
                 return render_template('error.html'), 500
-            user_response = requests.get(f'{DISCORD_API}/users/@me', headers={'Authorization': f'Bearer {access_token}'}, timeout=15)
+            user_response = requests.get(
+                f'{DISCORD_API}/users/@me',
+                headers={'Authorization': f'Bearer {access_token}'},
+                timeout=15,
+            )
             if user_response.status_code != 200:
                 session.clear()
                 return render_template('error.html'), 500
             guilds = _managed_guilds_from_token(access_token)
             user = user_response.json()
             session.clear()
-            session['oauth'] = {'access_token': access_token, 'refresh_token': token.get('refresh_token'), 'expires_at': time.time() + int(token.get('expires_in', 604800))}
-            session['user'] = {'id': str(user.get('id', '')), 'username': user.get('username'), 'global_name': user.get('global_name'), 'avatar': user.get('avatar')}
+            session['oauth'] = {
+                'access_token': access_token,
+                'refresh_token': token.get('refresh_token'),
+                'expires_at': time.time() + int(token.get('expires_in', 604800)),
+            }
+            session['user'] = {
+                'id': str(user.get('id', '')),
+                'username': user.get('username'),
+                'global_name': user.get('global_name'),
+                'avatar': user.get('avatar'),
+            }
             session['managed_guild_ids'] = sorted(guilds)
             csrf_token()
             return redirect(url_for('servers'))
@@ -95,10 +162,20 @@ def discord_token():
     oauth = session.get('oauth') or {}
     token = oauth.get('access_token')
     try:
-        expired = time.time() >= float(oauth.get('expires_at', 0))
+        expires_at = float(oauth.get('expires_at', 0))
     except (TypeError, ValueError):
-        expired = True
-    return token if token and not expired else None
+        expires_at = 0
+
+    # Refresh slightly before expiry so the dashboard does not suddenly log out
+    # during normal use. Discord refresh tokens are rotated, so persist the new one.
+    if token and time.time() < expires_at - 60:
+        return token
+
+    refreshed = _refresh_access_token()
+    if refreshed:
+        return refreshed
+
+    return None
 
 
 def managed_guild_ids():
