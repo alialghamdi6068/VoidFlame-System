@@ -268,9 +268,11 @@ class Tickets(commands.Cog):
         if isinstance(source, discord.Interaction):
             guild, channel, user = source.guild, source.channel, source.user
             async def reply(text):
+                if source.response.is_done():
+                    return await source.followup.send(text, ephemeral=True)
                 return await source.response.send_message(text, ephemeral=True)
             async def confirm(text):
-                return await source.response.send_message(text)
+                return await source.response.send_message(text, ephemeral=True)
         else:
             guild, channel, user = source.guild, source.channel, source.author
             async def reply(text):
