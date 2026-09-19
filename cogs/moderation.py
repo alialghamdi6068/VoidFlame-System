@@ -15,27 +15,27 @@ class Moderation(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    async def _ban(self, guild, member, reason):
+    async def _ban(self, guild, member, reason, moderator=None):
         await member.ban(reason=reason)
         log_activity(guild.id, 'ban', f'{member} | {reason}', member.id)
         logs = self.bot.get_cog('Logs')
         if logs:
-            await logs.send_log(guild, 'Ban', f'Member: {member.mention}\nReason: {reason}', actor=guild.me, color=discord.Color.red())
+            await logs.send_log(guild, 'Ban', f'Member: {member.mention}\nReason: {reason}', actor=moderator or guild.me, color=discord.Color.red())
 
-    async def _kick(self, guild, member, reason):
+    async def _kick(self, guild, member, reason, moderator=None):
         await member.kick(reason=reason)
         log_activity(guild.id, 'kick', f'{member} | {reason}', member.id)
         logs = self.bot.get_cog('Logs')
         if logs:
-            await logs.send_log(guild, 'Kick', f'Member: {member.mention}\nReason: {reason}', actor=guild.me, color=discord.Color.orange())
+            await logs.send_log(guild, 'Kick', f'Member: {member.mention}\nReason: {reason}', actor=moderator or guild.me, color=discord.Color.orange())
 
-    async def _timeout(self, guild, member, minutes, reason):
+    async def _timeout(self, guild, member, minutes, reason, moderator=None):
         until = discord.utils.utcnow() + datetime.timedelta(minutes=minutes)
         await member.timeout(until, reason=reason)
         log_activity(guild.id, 'timeout', f'{member} | {minutes}m | {reason}', member.id)
         logs = self.bot.get_cog('Logs')
         if logs:
-            await logs.send_log(guild, 'Timeout', f'Member: {member.mention}\nDuration: {minutes}m\nReason: {reason}', actor=guild.me, color=discord.Color.orange())
+            await logs.send_log(guild, 'Timeout', f'Member: {member.mention}\nDuration: {minutes}m\nReason: {reason}', actor=moderator or guild.me, color=discord.Color.orange())
 
     async def _change_role(self, guild, member, role, add: bool, moderator):
         me = guild.me
@@ -78,7 +78,7 @@ class Moderation(commands.Cog):
             return await ctx.reply('❌ ما تقدر تحظر البوت نفسه.')
         if member.top_role >= ctx.guild.me.top_role and member != ctx.guild.owner:
             return await ctx.reply('❌ رتبة العضو أعلى من رتبة البوت أو مساوية لها.')
-        await self._ban(ctx.guild, member, reason_text(reason))
+        await self._ban(ctx.guild, member, reason_text(reason), ctx.author)
         await ctx.reply(f'🔨 تم حظر {member.mention}.')
 
     @app_commands.command(name='ban', description='Ban a member')
@@ -89,7 +89,7 @@ class Moderation(commands.Cog):
             return await interaction.response.send_message('❌ ما تقدر تحظر مالك السيرفر.')
         if member.top_role >= interaction.guild.me.top_role and member != interaction.guild.owner:
             return await interaction.response.send_message('❌ رتبة العضو أعلى من رتبة البوت أو مساوية لها.')
-        await self._ban(interaction.guild, member, reason_text(reason))
+        await self._ban(interaction.guild, member, reason_text(reason), interaction.user)
         await interaction.response.send_message(f'🔨 تم حظر {member.mention}.')
 
     @commands.command(name='طرد')
@@ -101,7 +101,7 @@ class Moderation(commands.Cog):
             return await ctx.reply('❌ ما تقدر تطرد مالك السيرفر.')
         if member.top_role >= ctx.guild.me.top_role and member != ctx.guild.owner:
             return await ctx.reply('❌ رتبة العضو أعلى من رتبة البوت أو مساوية لها.')
-        await self._kick(ctx.guild, member, reason_text(reason))
+        await self._kick(ctx.guild, member, reason_text(reason), ctx.author)
         await ctx.reply(f'👢 تم طرد {member.mention}.')
 
     @app_commands.command(name='kick', description='Kick a member')
@@ -112,7 +112,7 @@ class Moderation(commands.Cog):
             return await interaction.response.send_message('❌ ما تقدر تطرد مالك السيرفر.')
         if member.top_role >= interaction.guild.me.top_role and member != interaction.guild.owner:
             return await interaction.response.send_message('❌ رتبة العضو أعلى من رتبة البوت أو مساوية لها.')
-        await self._kick(interaction.guild, member, reason_text(reason))
+        await self._kick(interaction.guild, member, reason_text(reason), interaction.user)
         await interaction.response.send_message(f'👢 تم طرد {member.mention}.')
 
     @commands.command(name='تايم')
@@ -126,7 +126,7 @@ class Moderation(commands.Cog):
             return await ctx.reply('❌ ما تقدر تعطي تايم لمالك السيرفر.')
         if member.top_role >= ctx.guild.me.top_role and member != ctx.guild.owner:
             return await ctx.reply('❌ رتبة العضو أعلى من رتبة البوت أو مساوية لها.')
-        await self._timeout(ctx.guild, member, minutes, reason_text(reason))
+        await self._timeout(ctx.guild, member, minutes, reason_text(reason), ctx.author)
         await ctx.reply(f'⏳ تم إعطاء {member.mention} تايم لمدة **{minutes}** دقيقة.')
 
     @app_commands.command(name='timeout', description='Timeout a member')
@@ -139,7 +139,7 @@ class Moderation(commands.Cog):
             return await interaction.response.send_message('❌ ما تقدر تعطي تايم لمالك السيرفر.')
         if member.top_role >= interaction.guild.me.top_role and member != interaction.guild.owner:
             return await interaction.response.send_message('❌ رتبة العضو أعلى من رتبة البوت أو مساوية لها.')
-        await self._timeout(interaction.guild, member, minutes, reason_text(reason))
+        await self._timeout(interaction.guild, member, minutes, reason_text(reason), interaction.user)
         await interaction.response.send_message(f'⏳ تم إعطاء {member.mention} تايم لمدة **{minutes}** دقيقة.')
 
     @commands.command(name='فك_تايم')
