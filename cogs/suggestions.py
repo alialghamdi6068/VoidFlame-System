@@ -33,7 +33,6 @@ class Suggestions(commands.Cog):
             with connection() as conn:
                 conn.execute('DELETE FROM suggestions WHERE id=? AND guild_id=?',(suggestion_id,guild.id))
             return None
-        await msg.add_reaction('👎')
         with connection() as conn:
             conn.execute('UPDATE suggestions SET message_id=? WHERE id=?', (msg.id, suggestion_id))
         log_activity(guild.id, 'suggestion', f'#{suggestion_id}', user.id)
