@@ -147,9 +147,39 @@ def init_db():
                     (next_number, row[0]),
                 )
 
+        # Keep at most one open ticket per member in each server before
+        # creating the partial unique index used by the runtime.
+        duplicates = conn.execute(
+            """
+            SELECT guild_id, user_id
+            FROM tickets
+            WHERE status='open'
+            GROUP BY guild_id, user_id
+            HAVING COUNT(*) > 1
+            """
+        ).fetchall()
+        for guild_id, user_id in duplicates:
+            rows = conn.execute(
+                """
+                SELECT id FROM tickets
+                WHERE guild_id=? AND user_id=? AND status='open'
+                ORDER BY id DESC
+                """,
+                (guild_id, user_id),
+            ).fetchall()
+            for row in rows[1:]:
+                conn.execute(
+                    "UPDATE tickets SET status='closed', closed_at=CURRENT_TIMESTAMP WHERE id=?",
+                    (row[0],),
+                )
+
         conn.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_tickets_guild_number "
             "ON tickets(guild_id, ticket_number)"
+        )
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_tickets_open_user "
+            "ON tickets(guild_id, user_id) WHERE status='open'"
         )
 
 
