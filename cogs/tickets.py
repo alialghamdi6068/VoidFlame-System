@@ -84,11 +84,25 @@ class TicketCloseConfirmView(discord.ui.View):
 
     @discord.ui.button(label='تأكيد الإغلاق', style=discord.ButtonStyle.danger, emoji='🔒')
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.edit_message(
-            content='🔒 تم تأكيد الإغلاق. اختر الإجراء المطلوب:',
-            view=TicketCloseActionView(self.cog, self.channel_id, self.user_id)
-        )
-        self.stop()
+        channel = interaction.guild.get_channel(self.channel_id) if interaction.guild else None
+        if not channel:
+            return await interaction.response.edit_message(content='❌ لم تعد قناة التذكرة موجودة.', view=None)
+        with connection() as conn:
+            row = conn.execute('SELECT * FROM tickets WHERE channel_id=? AND status="open"', (self.channel_id,)).fetchone()
+        if not row:
+            return await interaction.response.edit_message(content='❌ هذه التذكرة مغلقة أو غير موجودة.', view=None)
+        try:
+            with connection() as conn:
+                conn.execute("UPDATE tickets SET status='closed', closed_at=CURRENT_TIMESTAMP WHERE channel_id=? AND status='open'", (self.channel_id,))
+            opener = interaction.guild.get_member(int(row['user_id']))
+            if opener:
+                await channel.set_permissions(opener, view_channel=False, send_messages=False, read_message_history=False)
+            await interaction.response.edit_message(content='🔒 تم إغلاق التذكرة. اختر الإجراء المطلوب:', view=TicketCloseActionView(self.cog, self.channel_id, self.user_id))
+            self.stop()
+        except (discord.Forbidden, discord.HTTPException):
+            with connection() as conn:
+                conn.execute("UPDATE tickets SET status='open', closed_at=NULL WHERE channel_id=?", (self.channel_id,))
+            return await interaction.response.edit_message(content='❌ ما قدرت أقفل رؤية التذكرة عن صاحبها. تأكد من صلاحيات البوت.', view=None)
 
     @discord.ui.button(label='إلغاء', style=discord.ButtonStyle.secondary, emoji='✖️')
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -354,9 +368,9 @@ class Tickets(commands.Cog):
         if not guild or not channel:
             return await interaction.response.edit_message(content='❌ لم تعد قناة التذكرة موجودة.', view=None)
         with connection() as conn:
-            row = conn.execute('SELECT * FROM tickets WHERE channel_id=? AND status="open"', (channel.id,)).fetchone()
+            row = conn.execute('SELECT * FROM tickets WHERE channel_id=? AND status="closed"', (channel.id,)).fetchone()
         if not row:
-            return await interaction.response.edit_message(content='❌ هذه التذكرة مغلقة أو غير موجودة.', view=None)
+            return await interaction.response.edit_message(content='❌ هذه التذكرة ليست مغلقة.', view=None)
         if interaction.user.id != row['user_id'] and not interaction.user.guild_permissions.manage_channels:
             return await interaction.response.send_message('❌ ما عندك صلاحية حذف هذه التذكرة.', ephemeral=True)
         try:
@@ -387,12 +401,25 @@ class Tickets(commands.Cog):
         if not guild or not channel:
             return await interaction.response.edit_message(content='❌ لم تعد قناة التذكرة موجودة.', view=None)
         with connection() as conn:
-            row = conn.execute('SELECT * FROM tickets WHERE channel_id=? AND status="open"', (channel.id,)).fetchone()
+            row = conn.execute('SELECT * FROM tickets WHERE channel_id=? AND status="closed"', (channel.id,)).fetchone()
         if not row:
-            return await interaction.response.edit_message(content='❌ هذه التذكرة مغلقة أو غير موجودة.', view=None)
+            return await interaction.response.edit_message(content='❌ هذه التذكرة ليست مغلقة.', view=None)
         if interaction.user.id != row['user_id'] and not interaction.user.guild_permissions.manage_channels:
             return await interaction.response.send_message('❌ ما عندك صلاحية فتح هذه التذكرة.', ephemeral=True)
-        await interaction.response.edit_message(content='🔓 تم فتح التذكرة وإبقاؤها مفتوحة.', view=None)
+        opener = guild.get_member(int(row['user_id']))
+        if not opener:
+            try:
+                opener = await guild.fetch_member(int(row['user_id']))
+            except (discord.NotFound, discord.HTTPException):
+                opener = None
+        try:
+            if opener:
+                await channel.set_permissions(opener, view_channel=True, send_messages=True, read_message_history=True)
+            with connection() as conn:
+                conn.execute("UPDATE tickets SET status='open', closed_at=NULL WHERE channel_id=? AND status='closed'", (channel.id,))
+            await interaction.response.edit_message(content='🔓 تم فتح التذكرة. صاحب التذكرة يستطيع رؤيتها الآن.', view=None)
+        except (discord.Forbidden, discord.HTTPException):
+            return await interaction.response.edit_message(content='❌ ما قدرت أرجع صلاحية صاحب التذكرة. تأكد من صلاحيات البوت.', view=None)
         try:
             await self.write_ticket_log(guild, f'🔓 تم إلغاء إغلاق التذكرة بواسطة {interaction.user.mention}.')
             log_activity(guild.id, 'ticket_reopen', str(channel), interaction.user.id)
