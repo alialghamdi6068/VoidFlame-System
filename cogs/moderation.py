@@ -282,7 +282,7 @@ class Moderation(commands.Cog):
     async def clear_warnings_prefix(self, ctx, member: discord.Member):
         with connection() as conn:
             conn.execute('DELETE FROM warnings WHERE guild_id=? AND user_id=?', (ctx.guild.id, member.id))
-        log_activity(ctx.guild.id, 'clear_warnings', str(member), member.id)
+        log_activity(ctx.guild.id, 'clear_warnings', str(member), ctx.author.id)
         await ctx.reply(f'🧹 تم مسح تحذيرات {member.mention}.')
 
     @commands.command(name='حذف_تحذير')
