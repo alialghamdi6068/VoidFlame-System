@@ -1,6 +1,6 @@
 import time
 from flask import request, jsonify
-from database import get_guild_data, update_guild_data
+from database import get_guild_data, update_guild_data, log_activity
 from web.dashboard import logged_in, can_manage_guild
 from web.security import protected_post
 from services.settings_cache import settings_cache
@@ -261,6 +261,9 @@ def register_api(app, bot):
             if not minimum <= medium <= high:
                 return jsonify({'ok': False, 'error': 'ترتيب درجات الحماية الذكية غير صحيح.'}), 400
         data.pop('ticket_panel_footer', None)
+        changed_keys = sorted({key for key in (ALLOWED_SETTINGS | SYSTEM_ENABLED_SETTINGS) if key in payload} | ({'ticket_buttons'} if 'ticket_buttons' in payload else set()) | ({'level_rewards'} if 'level_rewards' in payload else set()) | ({'warning_escalation'} if 'warning_escalation' in payload else set()) | ({'autoreplies'} if action in ('add', 'delete') else set()))
         update_guild_data(guild_id, **data)
         settings_cache.invalidate(guild_id)
+        if changed_keys:
+            log_activity(guild_id, 'dashboard_settings_update', ', '.join(changed_keys)[:500])
         return jsonify({'ok': True, 'settings': get_guild_data(guild_id)})
