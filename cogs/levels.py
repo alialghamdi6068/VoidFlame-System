@@ -72,6 +72,8 @@ class Levels(commands.Cog):
     @commands.command(name='لفل')
     @commands.guild_only()
     async def level_prefix(self, ctx, member: discord.Member | None = None):
+        if get_guild_data(ctx.guild.id).get('levels_enabled', True) is False:
+            return await ctx.reply('❌ نظام المستويات متوقف حاليًا.')
         member = member or ctx.author
         with connection() as conn:
             row = conn.execute('SELECT xp, level FROM levels WHERE guild_id=? AND user_id=?', (ctx.guild.id, member.id)).fetchone()
@@ -81,6 +83,8 @@ class Levels(commands.Cog):
     @app_commands.command(name='level', description='Show a member level')
     @app_commands.guild_only()
     async def level_slash(self, interaction: discord.Interaction, member: discord.Member | None = None):
+        if get_guild_data(interaction.guild.id).get('levels_enabled', True) is False:
+            return await interaction.response.send_message('❌ نظام المستويات متوقف حاليًا.', ephemeral=True)
         member = member or interaction.user
         with connection() as conn:
             row = conn.execute('SELECT xp, level FROM levels WHERE guild_id=? AND user_id=?', (interaction.guild.id, member.id)).fetchone()
@@ -90,6 +94,8 @@ class Levels(commands.Cog):
     @commands.command(name='توب')
     @commands.guild_only()
     async def top_prefix(self, ctx):
+        if get_guild_data(ctx.guild.id).get('levels_enabled', True) is False:
+            return await ctx.reply('❌ نظام المستويات متوقف حاليًا.')
         with connection() as conn:
             rows = conn.execute('SELECT user_id, xp, level FROM levels WHERE guild_id=? ORDER BY xp DESC LIMIT 10', (ctx.guild.id,)).fetchall()
         if not rows:
@@ -100,6 +106,8 @@ class Levels(commands.Cog):
     @app_commands.command(name='leaderboard', description='Show the level leaderboard')
     @app_commands.guild_only()
     async def top_slash(self, interaction: discord.Interaction):
+        if get_guild_data(interaction.guild.id).get('levels_enabled', True) is False:
+            return await interaction.response.send_message('❌ نظام المستويات متوقف حاليًا.', ephemeral=True)
         with connection() as conn:
             rows = conn.execute('SELECT user_id, xp, level FROM levels WHERE guild_id=? ORDER BY xp DESC LIMIT 10', (interaction.guild.id,)).fetchall()
         lines = [f'**{i}.** <@{r["user_id"]}> — مستوى {r["level"]} | {r["xp"]} XP' for i, r in enumerate(rows, 1)]
