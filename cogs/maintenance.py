@@ -2,7 +2,11 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from config import OWNER_ID
-from database import get_global_setting, set_global_setting
+from database import get_global_setting, set_global_setting, init_db
+
+# The maintenance module is imported by bot.py before main() calls init_db().
+# Ensure its persisted global setting is readable during imports and tests.
+init_db()
 
 maintenance_mode = str(get_global_setting("maintenance_mode", "0")).lower() in {"1", "true", "yes", "on"}
 
