@@ -54,13 +54,19 @@ STRING_SETTINGS = {'mass_change_action', 'raid_action', 'protection_action'}
 
 
 def _get_bot_guild(bot, guild_id):
+    # The dashboard/API run outside discord.py's event-loop thread. A gateway
+    # reconnect can temporarily leave the guild cache empty, so wait for the
+    # client to become ready before declaring the guild unavailable.
+    ready_wait_deadline = time.time() + 15
+    while not bot.is_ready() and time.time() < ready_wait_deadline:
+        time.sleep(0.25)
     try:
         guild_id = int(guild_id)
     except (TypeError, ValueError):
         return None
     # Flask runs in its own thread while discord.py fills its cache asynchronously.
     # A short retry prevents a false "bot is not connected" response during startup/reconnect.
-    for _ in range(8):
+    for _ in range(40):
         try:
             guild = bot.get_guild(guild_id)
             if guild is not None:
