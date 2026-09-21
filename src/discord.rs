@@ -38,7 +38,7 @@ impl EventHandler for Handler {
 
         if *self.state.maintenance.read().await && name != "maintenance" {
             let _ = command.create_response(&ctx.http, CreateInteractionResponse::Message(
-                CreateInteractionResponseMessage::new("🔧 البوت حاليًا في وضع الصيانة.").ephemeral(true)
+                CreateInteractionResponseMessage::new().content("🔧 البوت حاليًا في وضع الصيانة.").ephemeral(true)
             )).await;
             return;
         }
@@ -63,7 +63,7 @@ impl EventHandler for Handler {
         };
 
         let _ = command.create_response(&ctx.http, CreateInteractionResponse::Message(
-            CreateInteractionResponseMessage::new(text).ephemeral(true)
+            CreateInteractionResponseMessage::new().content(text).ephemeral(true)
         )).await;
     }
 
