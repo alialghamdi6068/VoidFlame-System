@@ -1,4 +1,5 @@
 from functools import wraps
+import time
 import requests
 from flask import render_template, redirect, session, url_for, abort, request
 from database import get_guild_data, connection
@@ -62,8 +63,24 @@ def manageable_guilds(bot):
 
 
 def require_guild(guild_id, bot):
-    guild = bot.get_guild(guild_id)
+    try:
+        guild_id = int(guild_id)
+    except (TypeError, ValueError):
+        abort(404)
+    guild = None
+    for _ in range(8):
+        try:
+            guild = bot.get_guild(guild_id)
+            if guild is not None:
+                break
+        except Exception:
+            pass
+        if bot.is_ready():
+            break
+        time.sleep(0.25)
     if not guild:
+        # Keep the response accurate: this means the bot is genuinely absent
+        # from its connected guild cache, not that the OAuth user lacks access.
         abort(404, description='البوت غير موجود في هذا السيرفر. أضف VoidFlame أولًا ثم افتح لوحة التحكم.')
     if not can_manage_guild(guild):
         abort(403)
