@@ -93,6 +93,8 @@ class Applications(commands.Cog):
     @commands.has_permissions(manage_guild=True)
     async def reject_prefix(self,ctx,application_id:int): await self.change_status(ctx,application_id,'rejected')
     async def change_status(self,ctx,application_id,status):
+        if get_guild_data(ctx.guild.id).get('applications_enabled', True) is False:
+            return await ctx.reply('❌ نظام التقديمات متوقف حاليًا.')
         with connection() as conn:
             row=conn.execute('SELECT * FROM applications WHERE id=? AND guild_id=?',(application_id,ctx.guild.id)).fetchone()
             if not row: return await ctx.reply('❌ التقديم غير موجود.')
