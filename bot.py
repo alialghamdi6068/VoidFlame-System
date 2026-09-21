@@ -53,6 +53,8 @@ MULTIWORD_ALIASES = {
     "!رفض تقديم": "!رفض_تقديم",
     "!اعطاء رتبة": "!اعطاء_رتبة",
     "!سحب رتبة": "!سحب_رتبة",
+    "!تذكرة": "!تكت",
+    "!فتح تذكرة": "!تكت",
     "!اعلى دعوات": "!اعلى_دعوات",
     "!رتب السيرفر": "!رتب_السيرفر",
     "!اعضاء اونلاين": "!اعضاء_اونلاين",
@@ -168,7 +170,7 @@ async def on_command_error(ctx, error):
     print(f"[{BOT_NAME}] Command error: {type(original).__name__}: {original}")
     try:
         await ctx.reply(
-            "❌ حدث خطأ أثناء تنفيذ الأمر. تم تسجيل الخطأ في السجل.",
+            "❌ حدث خطأ أثناء تنفيذ الأمر. تم تسجيل الخطأ في السجل.\n\nالدعم: https://discord.gg/jH3vwYJyaB",
             mention_author=False,
         )
     except discord.HTTPException:
