@@ -42,7 +42,7 @@ class SystemToggleTests(unittest.TestCase):
     def test_ticket_interactions_honor_runtime_toggle(self):
         source = (ROOT / "cogs" / "tickets.py").read_text(encoding="utf-8")
         self.assertGreaterEqual(source.count("tickets_enabled', True) is False"), 8)
-        self.assertIn("status='open' AND channel_id<>?", source)
+        self.assertIn('status="open" AND channel_id<>?', source)
 
     def test_database_module_is_syntax_valid(self):
         ast.parse((ROOT / "database.py").read_text(encoding="utf-8"))
