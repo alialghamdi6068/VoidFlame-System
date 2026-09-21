@@ -93,6 +93,8 @@ class Suggestions(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
     async def configure(self, ctx, channel: discord.TextChannel):
+        if get_guild_data(ctx.guild.id).get('suggestions_enabled', True) is False:
+            return await ctx.reply('❌ نظام الاقتراحات متوقف حاليًا.')
         update_guild_data(ctx.guild.id, suggestions_channel_id=channel.id)
         await ctx.reply(f'✅ تم تحديد روم الاقتراحات: {channel.mention}')
 
