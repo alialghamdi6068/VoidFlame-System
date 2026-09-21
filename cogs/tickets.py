@@ -363,6 +363,10 @@ class Tickets(commands.Cog):
 
         if not guild or not channel:
             return
+        if get_guild_data(guild.id).get('tickets_enabled', True) is False:
+            if isinstance(source, discord.Interaction):
+                return await reply('❌ نظام التذاكر متوقف حاليًا.')
+            return await reply('❌ نظام التذاكر متوقف حاليًا.')
         with connection() as conn:
             row = conn.execute('SELECT * FROM tickets WHERE channel_id=? AND status="open"', (channel.id,)).fetchone()
         if not row:
@@ -373,6 +377,8 @@ class Tickets(commands.Cog):
 
     async def delete_closed_ticket(self, interaction, channel_id):
         guild = interaction.guild
+        if guild and get_guild_data(guild.id).get('tickets_enabled', True) is False:
+            return await interaction.response.edit_message(content='❌ نظام التذاكر متوقف حاليًا.', view=None)
         channel = guild.get_channel(int(channel_id)) if guild else None
         if not guild or not channel:
             return await interaction.response.edit_message(content='❌ لم تعد قناة التذكرة موجودة.', view=None)
@@ -397,6 +403,8 @@ class Tickets(commands.Cog):
 
     async def reopen_ticket(self, interaction, channel_id):
         guild = interaction.guild
+        if guild and get_guild_data(guild.id).get('tickets_enabled', True) is False:
+            return await interaction.response.edit_message(content='❌ نظام التذاكر متوقف حاليًا.', view=None)
         channel = guild.get_channel(int(channel_id)) if guild else None
         if not guild or not channel:
             return await interaction.response.edit_message(content='❌ لم تعد قناة التذكرة موجودة.', view=None)
@@ -455,6 +463,8 @@ class Tickets(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(manage_channels=True)
     async def claim_prefix(self, ctx):
+        if get_guild_data(ctx.guild.id).get('tickets_enabled', True) is False:
+            return await ctx.reply('❌ نظام التذاكر متوقف حاليًا.')
         if not self.is_ticket_channel(ctx.channel):
             return await ctx.reply('❌ هذا الأمر يعمل داخل تذكرة مفتوحة فقط.')
         await ctx.reply(f'📥 تم استلام التذكرة بواسطة {ctx.author.mention}.')
@@ -470,6 +480,8 @@ class Tickets(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(manage_channels=True)
     async def add_prefix(self, ctx, member: discord.Member):
+        if get_guild_data(ctx.guild.id).get('tickets_enabled', True) is False:
+            return await ctx.reply('❌ نظام التذاكر متوقف حاليًا.')
         if not self.is_ticket_channel(ctx.channel):
             return await ctx.reply('❌ هذا الأمر يعمل داخل تذكرة مفتوحة فقط.')
         await ctx.channel.set_permissions(member, view_channel=True, send_messages=True, read_message_history=True)
@@ -481,6 +493,8 @@ class Tickets(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(manage_channels=True)
     async def remove_prefix(self, ctx, member: discord.Member):
+        if get_guild_data(ctx.guild.id).get('tickets_enabled', True) is False:
+            return await ctx.reply('❌ نظام التذاكر متوقف حاليًا.')
         if not self.is_ticket_channel(ctx.channel):
             return await ctx.reply('❌ هذا الأمر يعمل داخل تذكرة مفتوحة فقط.')
         await ctx.channel.set_permissions(member, overwrite=None)
