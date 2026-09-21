@@ -75,6 +75,8 @@ class Suggestions(commands.Cog):
     @commands.guild_only()
     async def suggestion_prefix(self, ctx, *, content: str):
         settings = get_guild_data(ctx.guild.id)
+        if settings.get('suggestions_enabled', True) is False:
+            return await ctx.reply('❌ نظام الاقتراحات متوقف حاليًا.')
         channel_id = settings.get('suggestions_channel_id')
         channel = ctx.guild.get_channel(int(channel_id)) if channel_id else ctx.channel
         if not isinstance(channel, discord.TextChannel):
