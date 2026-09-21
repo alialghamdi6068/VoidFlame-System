@@ -29,6 +29,8 @@ class AutoReply(commands.Cog):
     @commands.has_permissions(manage_guild=True)
     async def add_reply(self,ctx,trigger:str,*,response:str):
         settings=get_guild_data(ctx.guild.id)
+        if settings.get('autoreply_enabled', True) is False:
+            return await ctx.reply('❌ نظام الردود التلقائية متوقف حاليًا.')
         replies=dict(settings.get('autoreplies',{}))
         trigger=trigger.strip()[:100]
         if not trigger:
@@ -42,6 +44,8 @@ class AutoReply(commands.Cog):
     @commands.has_permissions(manage_guild=True)
     async def remove_reply(self,ctx,trigger:str):
         settings=get_guild_data(ctx.guild.id)
+        if settings.get('autoreply_enabled', True) is False:
+            return await ctx.reply('❌ نظام الردود التلقائية متوقف حاليًا.')
         replies=dict(settings.get('autoreplies',{}))
         if trigger not in replies:
             return await ctx.reply('❌ هذا الرد غير موجود.')
