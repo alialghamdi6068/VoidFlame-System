@@ -75,6 +75,11 @@ class SystemToggleTests(unittest.TestCase):
         self.assertIn("if bot_ids or bot.is_ready():", source)
         self.assertIn("bot_installed': guild_id in bot_ids", source)
 
+    def test_dashboard_api_authorization_uses_same_permission_gate(self):
+        source = (ROOT / "web" / "api.py").read_text(encoding="utf-8")
+        self.assertGreaterEqual(source.count("if not can_manage_guild(guild):"), 2)
+        self.assertIn("غير مصرح لك بإدارة هذا السيرفر.", source)
+
     def test_dashboard_authorization_uses_current_discord_permissions(self):
         auth = (ROOT / "web" / "auth.py").read_text(encoding="utf-8")
         dashboard = (ROOT / "web" / "dashboard.py").read_text(encoding="utf-8")
