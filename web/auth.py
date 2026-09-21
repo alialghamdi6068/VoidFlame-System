@@ -179,6 +179,17 @@ def discord_token():
 
 
 def managed_guild_ids():
+    """Return the user's current Discord-managed guilds.
+
+    The session copy is only a fallback. Permissions can change after OAuth login,
+    so authorization checks refresh the guild list from Discord when possible.
+    """
+    token = discord_token()
+    if token:
+        current = _managed_guilds_from_token(token)
+        if current:
+            session['managed_guild_ids'] = sorted(current)
+            return current
     cached = session.get('managed_guild_ids')
     if isinstance(cached, list):
         result = set()
@@ -188,4 +199,4 @@ def managed_guild_ids():
             except (TypeError, ValueError):
                 continue
         return result
-    return _managed_guilds_from_token(discord_token())
+    return set()
