@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from database import connection, log_activity
+from database import connection, log_activity, get_guild_data
 
 
 class AFK(commands.Cog):
