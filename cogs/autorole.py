@@ -30,6 +30,8 @@ class AutoRole(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(manage_roles=True)
     async def set_role(self, ctx, role: discord.Role):
+        if get_guild_data(ctx.guild.id).get('autorole_enabled', True) is False:
+            return await ctx.reply('❌ نظام الرتبة التلقائية متوقف حاليًا.')
         if not role.is_assignable():
             return await ctx.reply('❌ البوت لا يستطيع إعطاء هذه الرتبة. تأكد أن رتبته أعلى منها.')
         update_guild_data(ctx.guild.id, auto_role_id=role.id)
