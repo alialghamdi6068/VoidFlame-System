@@ -75,6 +75,13 @@ class SystemToggleTests(unittest.TestCase):
         self.assertIn("if bot_ids or bot.is_ready():", source)
         self.assertIn("bot_installed': guild_id in bot_ids", source)
 
+    def test_dashboard_authorization_uses_current_discord_permissions(self):
+        auth = (ROOT / "web" / "auth.py").read_text(encoding="utf-8")
+        dashboard = (ROOT / "web" / "dashboard.py").read_text(encoding="utf-8")
+        self.assertIn("current = _managed_guilds_from_token(token)", auth)
+        self.assertIn("return guild.id in managed_guild_ids()", dashboard)
+        self.assertNotIn("member.guild_permissions.manage_guild", dashboard)
+
     def test_dashboard_home_is_always_landing_page(self):
         source = (ROOT / "web" / "dashboard.py").read_text(encoding="utf-8")
         template = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
