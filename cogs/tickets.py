@@ -108,6 +108,11 @@ class TicketCloseConfirmView(discord.ui.View):
                 await channel.set_permissions(opener, view_channel=False, send_messages=False, read_message_history=False)
             with connection() as conn:
                 conn.execute("UPDATE tickets SET status='closed', closed_at=CURRENT_TIMESTAMP WHERE channel_id=? AND status='open'", (self.channel_id,))
+            log_activity(interaction.guild.id, 'ticket_close', str(channel), interaction.user.id)
+            try:
+                await self.cog.write_ticket_log(interaction.guild, f'🔒 تم إغلاق التذكرة بواسطة {interaction.user.mention}.')
+            except Exception:
+                pass
             await interaction.response.edit_message(content='🔒 تم إغلاق التذكرة. اختر الإجراء المطلوب:', view=TicketCloseActionView(self.cog, self.channel_id, self.user_id, show_delete=interaction.user.guild_permissions.manage_channels))
             self.stop()
         except (discord.Forbidden, discord.HTTPException):
@@ -456,6 +461,11 @@ class Tickets(commands.Cog):
             await channel.set_permissions(opener, view_channel=True, send_messages=True, read_message_history=True)
             with connection() as conn:
                 conn.execute("UPDATE tickets SET status='open', closed_at=NULL WHERE channel_id=? AND status='closed'", (channel.id,))
+            log_activity(guild.id, 'ticket_reopen', str(channel), interaction.user.id)
+            try:
+                await self.write_ticket_log(guild, f'🔓 تم إعادة فتح التذكرة بواسطة {interaction.user.mention}.')
+            except Exception:
+                pass
             await interaction.response.edit_message(content='🔓 تم فتح التذكرة. صاحب التذكرة يستطيع رؤيتها الآن.', view=None)
         except (discord.Forbidden, discord.HTTPException):
             return await interaction.response.edit_message(content='❌ ما قدرت أرجع صلاحية صاحب التذكرة. تأكد من صلاحيات البوت.', view=None)
