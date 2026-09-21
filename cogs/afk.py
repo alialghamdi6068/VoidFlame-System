@@ -12,6 +12,8 @@ class AFK(commands.Cog):
     async def on_message(self, message):
         if not message.guild or message.author.bot:
             return
+        if get_guild_data(message.guild.id).get('afk_enabled', True) is False:
+            return
         own = None
         mentioned_afk = []
         with connection() as conn:
