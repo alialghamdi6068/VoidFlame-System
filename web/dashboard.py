@@ -76,8 +76,6 @@ def require_guild(guild_id, bot):
                 break
         except Exception:
             pass
-        if bot.is_ready():
-            break
         time.sleep(0.25)
     if not guild:
         # Keep the response accurate: this means the bot is genuinely absent
