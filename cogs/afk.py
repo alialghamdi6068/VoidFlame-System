@@ -59,6 +59,8 @@ class AFK(commands.Cog):
     @commands.command(name='غياب', aliases=['afk'])
     @commands.guild_only()
     async def afk_prefix(self, ctx, *, reason='بدون سبب'):
+        if get_guild_data(ctx.guild.id).get('afk_enabled', True) is False:
+            return await ctx.reply('❌ نظام الغياب متوقف حاليًا.')
         reason = reason[:500]
         await self.set_afk(ctx.guild, ctx.author, reason)
         await ctx.reply(f'💤 تم تفعيل الغياب لك.\n**السبب:** {reason}')
