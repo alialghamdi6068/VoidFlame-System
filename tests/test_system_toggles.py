@@ -50,6 +50,11 @@ class SystemToggleTests(unittest.TestCase):
         self.assertIn("ticket_reopen", source)
         self.assertIn("log_activity(interaction.guild.id", source)
 
+    def test_ticket_reopen_is_audited_once(self):
+        source = (ROOT / "cogs" / "tickets.py").read_text(encoding="utf-8")
+        self.assertEqual(source.count("log_activity(guild.id, 'ticket_reopen'"), 1)
+        self.assertEqual(source.count("تم إعادة فتح التذكرة بواسطة"), 1)
+
     def test_dashboard_settings_are_audited(self):
         source = (ROOT / "web" / "api.py").read_text(encoding="utf-8")
         self.assertIn("from database import get_guild_data, update_guild_data, log_activity", source)
