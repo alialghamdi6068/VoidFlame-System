@@ -39,9 +39,28 @@ def manageable_guilds(bot):
     token = discord_token()
     if not token: return []
     try:
-        response = requests.get('https://discord.com/api/v10/users/@me/guilds', headers={'Authorization': f'Bearer {token}'}, timeout=15)
+        response = requests.get(
+            'https://discord.com/api/v10/users/@me/guilds',
+            headers={'Authorization': f'Bearer {token}'},
+            timeout=15,
+        )
         if response.status_code != 200: return []
-        bot_ids = {guild.id for guild in bot.guilds}
+
+        # The gateway cache can briefly be empty during startup/reconnect. Wait
+        # for readiness before deciding that a managed server has no bot.
+        ready_wait_deadline = time.time() + 15
+        while not bot.is_ready() and time.time() < ready_wait_deadline:
+            time.sleep(0.25)
+
+        bot_ids = set()
+        for _ in range(40):
+            try:
+                bot_ids = {guild.id for guild in bot.guilds}
+                break
+            except Exception:
+                pass
+            time.sleep(0.25)
+
         result = []
         for item in response.json():
             try:
@@ -84,8 +103,6 @@ def require_guild(guild_id, bot):
             pass
         time.sleep(0.25)
     if not guild:
-        # Keep the response accurate: this means the bot is genuinely absent
-        # from its connected guild cache, not that the OAuth user lacks access.
         abort(404, description='البوت غير موجود في هذا السيرفر. أضف VoidFlame أولًا ثم افتح لوحة التحكم.')
     if not can_manage_guild(guild):
         abort(403)
@@ -97,13 +114,22 @@ def register_dashboard(app, bot):
     def home():
         if request.args.get('code') and request.args.get('state'):
             return redirect(url_for('callback', code=request.args['code'], state=request.args['state']))
-        if session.get('user'): return redirect(url_for('servers'))
-        return render_template('index.html')
+        # The landing page is always the public home page. The Start button
+        # decides whether to open the user's servers or Discord OAuth login.
+        return render_template('index.html', logged_in=bool(session.get('user') and discord_token()))
 
     @app.get('/servers')
     @logged_in
     def servers():
-        return render_template('servers.html', user=session['user'], guilds=manageable_guilds(bot), invite_url=(f'https://discord.com/oauth2/authorize?client_id={DISCORD_CLIENT_ID}&permissions=8&scope=bot%20applications.commands' if DISCORD_CLIENT_ID else ''))
+        return render_template(
+            'servers.html',
+            user=session['user'],
+            guilds=manageable_guilds(bot),
+            invite_url=(
+                f'https://discord.com/oauth2/authorize?client_id={DISCORD_CLIENT_ID}&permissions=8&scope=bot%20applications.commands'
+                if DISCORD_CLIENT_ID else ''
+            ),
+        )
 
     @app.get('/dashboard/<int:guild_id>')
     @logged_in
