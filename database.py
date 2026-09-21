@@ -225,9 +225,27 @@ def set_guild_data(guild_id, data):
 
 
 def update_guild_data(guild_id, **changes):
-    data = get_guild_data(guild_id)
-    data.update(changes)
-    set_guild_data(guild_id, data)
+    """Atomically merge guild settings so concurrent dashboard writes cannot overwrite each other."""
+    guild_id = int(guild_id)
+    with connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute(
+            "SELECT data FROM guild_settings WHERE guild_id=?",
+            (guild_id,),
+        ).fetchone()
+        data = json.loads(row["data"]) if row else {}
+        data.update(changes)
+        encoded = json.dumps(data, ensure_ascii=False)
+        conn.execute(
+            "INSERT INTO guild_settings(guild_id,data) VALUES(?,?) "
+            "ON CONFLICT(guild_id) DO UPDATE SET data=excluded.data",
+            (guild_id, encoded),
+        )
+    try:
+        from services.settings_cache import settings_cache
+        settings_cache.invalidate(guild_id)
+    except Exception:
+        pass
     return data
 
 
