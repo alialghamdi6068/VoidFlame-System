@@ -5,6 +5,8 @@ from database import get_guild_data, connection, log_activity
 class ApplicationReviewView(discord.ui.View):
     def __init__(self,cog,application_id): super().__init__(timeout=86400); self.cog=cog; self.application_id=application_id
     async def review(self,interaction,status):
+        if get_guild_data(interaction.guild.id).get('applications_enabled', True) is False:
+            return await interaction.response.send_message('❌ نظام التقديمات متوقف حاليًا.',ephemeral=True)
         if not interaction.user.guild_permissions.manage_guild: return await interaction.response.send_message('❌ هذا الزر للإدارة فقط.',ephemeral=True)
         with connection() as conn:
             row=conn.execute('SELECT * FROM applications WHERE id=? AND guild_id=?',(self.application_id,interaction.guild.id)).fetchone()
