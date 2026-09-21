@@ -56,7 +56,8 @@ def manageable_guilds(bot):
         for _ in range(40):
             try:
                 bot_ids = {guild.id for guild in bot.guilds}
-                break
+                if bot_ids or bot.is_ready():
+                    break
             except Exception:
                 pass
             time.sleep(0.25)
