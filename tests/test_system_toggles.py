@@ -62,11 +62,19 @@ class SystemToggleTests(unittest.TestCase):
         self.assertIn("while not bot.is_ready()", source)
         self.assertIn("for _ in range(40)", source)
 
-    def test_dashboard_api_share_resilient_guild_lookup(self):
-        source = (ROOT / "web" / "api.py").read_text(encoding="utf-8")
-        self.assertIn("ready_wait_deadline = time.time() + 15", source)
-        self.assertIn("while not bot.is_ready()", source)
-        self.assertIn("for _ in range(40)", source)
+    def test_dashboard_server_list_waits_for_gateway_ready(self):
+        source = (ROOT / "web" / "dashboard.py").read_text(encoding="utf-8")
+        self.assertIn("bot_ids = set()", source)
+        self.assertIn("while not bot.is_ready() and time.time() < ready_wait_deadline", source)
+        self.assertIn("bot_installed': guild_id in bot_ids", source)
+
+    def test_dashboard_home_is_always_landing_page(self):
+        source = (ROOT / "web" / "dashboard.py").read_text(encoding="utf-8")
+        template = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
+        self.assertIn("return render_template('index.html'", source)
+        self.assertNotIn("return redirect(url_for('servers'))", source.split("def home()", 1)[1].split("@app.get('/servers')", 1)[0])
+        self.assertIn("url_for('servers') if logged_in else url_for('login')", template)
+        self.assertIn("{% if logged_in %}", template)
 
     def test_database_module_is_syntax_valid(self):
         ast.parse((ROOT / "database.py").read_text(encoding="utf-8"))
