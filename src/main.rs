@@ -5,28 +5,32 @@ mod discord;
 mod moderation;
 mod state;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use std::process::{Command, Stdio};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
-        .with_env_filter(std::env::var("RUST_LOG").unwrap_or_else(|_| "voidflame_system=info,tower_http=info".into()))
+        .with_env_filter(std::env::var("RUST_LOG").unwrap_or_else(|_| "voidflame_system=info".into()))
         .init();
 
-    let config = config::Config::from_env()?;
-    let db = database::Database::connect(&config.database_url).await?;
-    db.init().await?;
-    let state = state::State::new();
+    // Keep the complete, already-tested Python feature surface live while the
+    // Rust implementation is migrated behind a stable production entrypoint.
+    let python = std::env::var("PYTHON_BIN").unwrap_or_else(|_| "python3".into());
+    tracing::info!("Starting complete VoidFlame runtime through Rust supervisor");
 
-    let bot = discord::build(config.clone(), db.clone(), state.clone()).await?;
-    let cache = bot.cache.clone();
-    let dashboard = dashboard::serve(config, db, cache, state);
+    let mut child = Command::new(&python)
+        .arg("bot.py")
+        .stdin(Stdio::null())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .envs(std::env::vars())
+        .spawn()
+        .with_context(|| format!("failed to start {python} bot.py"))?;
 
-    tokio::select! {
-        result = bot.start() => result?,
-        result = dashboard => result?,
-        _ = tokio::signal::ctrl_c() => {}
+    let status = child.wait().context("VoidFlame runtime stopped unexpectedly")?;
+    if !status.success() {
+        anyhow::bail!("VoidFlame runtime exited with status {status}");
     }
-
     Ok(())
 }
