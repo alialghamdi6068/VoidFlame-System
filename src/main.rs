@@ -2,25 +2,30 @@ mod config;
 mod database;
 mod dashboard;
 mod discord;
+mod moderation;
+mod state;
 
 use anyhow::Result;
 use config::Config;
 use database::Database;
-use tracing::info;
+use state::State;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    tracing_subscriber::fmt().with_env_filter(std::env::var("RUST_LOG").unwrap_or_else(|_| "voidflame_system=info,tower_http=info".into())).init();
+    tracing_subscriber::fmt()
+        .with_env_filter(std::env::var("RUST_LOG").unwrap_or_else(|_| "voidflame_system=info,tower_http=info".into()))
+        .init();
     let config = Config::from_env()?;
-    let database = Database::connect().await?;
-    database.init().await?;
-    info!("Database initialized");
-    let discord = discord::build_client(&config, database.clone()).await?;
-    let dashboard = dashboard::serve(config.clone(), discord.cache.clone());
+    let db = Database::connect(&config.database_url).await?;
+    db.init().await?;
+    let state = State::new();
+    let cache = std::sync::Arc::new(serenity::prelude::Cache::new());
+    let dashboard = dashboard::serve(config.clone(), db.clone(), cache, state.clone());
+    let mut bot = discord::build(config, db, state).await?;
     tokio::select! {
-        result = discord.start() => result?,
-        result = dashboard => result?,
-        _ = tokio::signal::ctrl_c() => info!("Shutdown signal received"),
+        r = bot.client.start_autosharded() => r?,
+        r = dashboard => r?,
+        _ = tokio::signal::ctrl_c() => tracing::info!("Shutdown signal received"),
     }
     Ok(())
 }
