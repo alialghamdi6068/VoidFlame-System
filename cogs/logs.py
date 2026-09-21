@@ -51,12 +51,14 @@ class Logs(commands.Cog):
     @commands.has_permissions(manage_guild=True)
     async def set_logs(self, ctx, channel: discord.TextChannel):
         update_guild_data(ctx.guild.id, log_channel_id=channel.id)
+        log_activity(ctx.guild.id, 'log_channel_update', f'channel={channel.id}', ctx.author.id)
         await ctx.reply(f'✅ تم تحديد روم اللوق: {channel.mention}')
 
     @app_commands.command(name='logs', description='Set the security log channel')
     @app_commands.checks.has_permissions(manage_guild=True)
     async def set_logs_slash(self, interaction, channel: discord.TextChannel):
         update_guild_data(interaction.guild.id, log_channel_id=channel.id)
+        log_activity(interaction.guild.id, 'log_channel_update', f'channel={channel.id}', interaction.user.id)
         await interaction.response.send_message(f'✅ تم تحديد روم اللوق: {channel.mention}', ephemeral=True)
 
 
