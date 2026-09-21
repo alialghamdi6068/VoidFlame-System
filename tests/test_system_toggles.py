@@ -44,6 +44,12 @@ class SystemToggleTests(unittest.TestCase):
         self.assertGreaterEqual(source.count("tickets_enabled', True) is False"), 8)
         self.assertIn('status="open" AND channel_id<>?', source)
 
+    def test_dashboard_settings_are_audited(self):
+        source = (ROOT / "web" / "api.py").read_text(encoding="utf-8")
+        self.assertIn("from database import get_guild_data, update_guild_data, log_activity", source)
+        self.assertIn("dashboard_settings_update", source)
+        self.assertIn("settings_cache.invalidate(guild_id)", source)
+
     def test_database_module_is_syntax_valid(self):
         ast.parse((ROOT / "database.py").read_text(encoding="utf-8"))
 
