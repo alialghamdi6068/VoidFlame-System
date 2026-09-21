@@ -28,10 +28,9 @@ def can_manage_guild(guild):
     if not user_id or not guild: return False
     try: user_id = int(user_id)
     except (TypeError, ValueError): return False
-    if guild.owner_id == user_id: return True
-    if guild.id in managed_guild_ids(): return True
-    member = guild.get_member(user_id)
-    return bool(member and (member.guild_permissions.administrator or member.guild_permissions.manage_guild))
+    # Discord OAuth guild permissions are the authoritative authorization source.
+    # Do not trust the bot's member cache: it can be stale after a user loses access.
+    return guild.id in managed_guild_ids()
 
 
 def manageable_guilds(bot):
