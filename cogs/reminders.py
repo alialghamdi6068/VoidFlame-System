@@ -60,6 +60,8 @@ class Reminders(commands.Cog):
     @commands.command(name='تذكير')
     @commands.guild_only()
     async def reminder(self,ctx,duration:str,*,text:str):
+        if get_guild_data(ctx.guild.id).get('reminders_enabled', True) is False:
+            return await ctx.reply('❌ نظام التذكيرات متوقف حاليًا.')
         try: delay=seconds(duration)
         except ValueError: return await ctx.reply('❌ استخدم `10m` أو `2h` أو `1d`.')
         if delay<5 or delay>30*86400: return await ctx.reply('❌ المدة يجب أن تكون بين 5 ثوانٍ و30 يوم.')
