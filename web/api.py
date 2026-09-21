@@ -1,3 +1,4 @@
+import time
 from flask import request, jsonify
 from database import get_guild_data, update_guild_data
 from web.dashboard import logged_in, can_manage_guild
@@ -57,13 +58,18 @@ def _get_bot_guild(bot, guild_id):
         guild_id = int(guild_id)
     except (TypeError, ValueError):
         return None
-    try:
-        guilds = list(bot.guilds)
-    except Exception:
-        return None
-    for guild in guilds:
-        if guild.id == guild_id:
-            return guild
+    # Flask runs in its own thread while discord.py fills its cache asynchronously.
+    # A short retry prevents a false "bot is not connected" response during startup/reconnect.
+    for _ in range(8):
+        try:
+            guild = bot.get_guild(guild_id)
+            if guild is not None:
+                return guild
+        except Exception:
+            pass
+        if bot.is_ready():
+            break
+        time.sleep(0.25)
     return None
 
 
