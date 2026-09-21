@@ -469,12 +469,6 @@ class Tickets(commands.Cog):
             await interaction.response.edit_message(content='🔓 تم فتح التذكرة. صاحب التذكرة يستطيع رؤيتها الآن.', view=None)
         except (discord.Forbidden, discord.HTTPException):
             return await interaction.response.edit_message(content='❌ ما قدرت أرجع صلاحية صاحب التذكرة. تأكد من صلاحيات البوت.', view=None)
-        try:
-            await self.write_ticket_log(guild, f'🔓 تم إلغاء إغلاق التذكرة بواسطة {interaction.user.mention}.')
-            log_activity(guild.id, 'ticket_reopen', str(channel), interaction.user.id)
-        except Exception:
-            pass
-
     async def send_panel(self, ctx):
         settings = get_guild_data(ctx.guild.id)
         if settings.get('tickets_enabled', True) is False:
