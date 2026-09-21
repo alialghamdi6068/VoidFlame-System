@@ -67,8 +67,6 @@ def _get_bot_guild(bot, guild_id):
                 return guild
         except Exception:
             pass
-        if bot.is_ready():
-            break
         time.sleep(0.25)
     return None
 
