@@ -56,6 +56,18 @@ class SystemToggleTests(unittest.TestCase):
         self.assertIn("dashboard_settings_update", source)
         self.assertIn("settings_cache.invalidate(guild_id)", source)
 
+    def test_dashboard_waits_for_gateway_ready_and_cache(self):
+        source = (ROOT / "web" / "dashboard.py").read_text(encoding="utf-8")
+        self.assertIn("ready_wait_deadline = time.time() + 15", source)
+        self.assertIn("while not bot.is_ready()", source)
+        self.assertIn("for _ in range(40)", source)
+
+    def test_dashboard_api_share_resilient_guild_lookup(self):
+        source = (ROOT / "web" / "api.py").read_text(encoding="utf-8")
+        self.assertIn("ready_wait_deadline = time.time() + 15", source)
+        self.assertIn("while not bot.is_ready()", source)
+        self.assertIn("for _ in range(40)", source)
+
     def test_database_module_is_syntax_valid(self):
         ast.parse((ROOT / "database.py").read_text(encoding="utf-8"))
 
