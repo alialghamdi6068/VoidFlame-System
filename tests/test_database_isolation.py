@@ -43,6 +43,16 @@ class DatabaseIsolationTests(unittest.TestCase):
         self.assertEqual(next_a, 2)
         self.assertEqual(next_b, 2)
 
+    def test_update_guild_data_merges_without_losing_existing_keys(self):
+        from database import update_guild_data, get_guild_data
+
+        update_guild_data(100, welcome_enabled=True, tickets_enabled=True)
+        update_guild_data(100, welcome_enabled=False)
+
+        settings = get_guild_data(100)
+        self.assertFalse(settings["welcome_enabled"])
+        self.assertTrue(settings["tickets_enabled"])
+
     def test_guild_settings_are_isolated(self):
         with connection() as conn:
             conn.execute(
