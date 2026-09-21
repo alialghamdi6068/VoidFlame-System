@@ -92,12 +92,16 @@ class Welcome(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
     async def welcome_prefix(self, ctx, channel: discord.TextChannel, *, message: str = 'أهلاً وسهلاً {member} في **{server}**! 👋'):
+        if get_guild_data(ctx.guild.id).get('welcome_enabled', True) is False:
+            return await ctx.reply('❌ نظام الترحيب متوقف حاليًا.')
         update_guild_data(ctx.guild.id, welcome_channel_id=channel.id, welcome_message=message[:2000])
         await ctx.reply(f'✅ تم ضبط الترحيب في {channel.mention}.')
 
     @app_commands.command(name='welcome', description='Set the welcome channel and message')
     @app_commands.checks.has_permissions(manage_guild=True)
     async def welcome_slash(self, interaction, channel: discord.TextChannel, message: str = 'أهلاً وسهلاً {member} في **{server}**! 👋'):
+        if get_guild_data(interaction.guild.id).get('welcome_enabled', True) is False:
+            return await interaction.response.send_message('❌ نظام الترحيب متوقف حاليًا.', ephemeral=True)
         update_guild_data(interaction.guild.id, welcome_channel_id=channel.id, welcome_message=message[:2000])
         await interaction.response.send_message(f'✅ تم ضبط الترحيب في {channel.mention}.')
 
