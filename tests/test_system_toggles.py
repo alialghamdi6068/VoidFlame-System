@@ -44,6 +44,12 @@ class SystemToggleTests(unittest.TestCase):
         self.assertGreaterEqual(source.count("tickets_enabled', True) is False"), 8)
         self.assertIn('status="open" AND channel_id<>?', source)
 
+    def test_ticket_lifecycle_actions_are_audited(self):
+        source = (ROOT / "cogs" / "tickets.py").read_text(encoding="utf-8")
+        self.assertIn("ticket_close", source)
+        self.assertIn("ticket_reopen", source)
+        self.assertIn("log_activity(interaction.guild.id", source)
+
     def test_dashboard_settings_are_audited(self):
         source = (ROOT / "web" / "api.py").read_text(encoding="utf-8")
         self.assertIn("from database import get_guild_data, update_guild_data, log_activity", source)
