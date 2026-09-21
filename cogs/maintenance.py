@@ -69,9 +69,11 @@ class Maintenance(commands.Cog):
         set_global_setting("maintenance_mode", "1" if maintenance_mode else "0")
         if maintenance_mode:
             unloaded = await self._disable_all_systems()
+            set_global_setting("maintenance_last_action", "enabled")
             await reply(f"🔧 تم تفعيل الصيانة العامة. تم إيقاف {len(unloaded)} نظامًا في كل السيرفرات.\n👤 المالك الوحيد المسموح له: <@{OWNER_ID}>\nاستخدم !صيانة مرة ثانية لإرجاع كل الأنظمة.")
         else:
             loaded = await self._enable_all_systems()
+            set_global_setting("maintenance_last_action", "disabled")
             await reply(f"✅ تم إنهاء الصيانة العامة. تم تشغيل {len(loaded)} نظامًا من جديد في كل السيرفرات.")
 
 async def setup(bot):
