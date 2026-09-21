@@ -3,6 +3,7 @@ import time
 import requests
 from flask import render_template, redirect, session, url_for, abort, request
 from database import get_guild_data, connection
+from config import DISCORD_CLIENT_ID
 from web.auth import discord_token, managed_guild_ids
 
 SYSTEMS = {
@@ -98,7 +99,7 @@ def register_dashboard(app, bot):
     @app.get('/servers')
     @logged_in
     def servers():
-        return render_template('servers.html', user=session['user'], guilds=manageable_guilds(bot))
+        return render_template('servers.html', user=session['user'], guilds=manageable_guilds(bot), invite_url=(f'https://discord.com/oauth2/authorize?client_id={DISCORD_CLIENT_ID}&permissions=8&scope=bot%20applications.commands' if DISCORD_CLIENT_ID else ''))
 
     @app.get('/dashboard/<int:guild_id>')
     @logged_in
