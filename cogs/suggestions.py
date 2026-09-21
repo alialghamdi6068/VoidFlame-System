@@ -39,6 +39,8 @@ class Suggestions(commands.Cog):
         return suggestion_id
 
     async def set_status(self, ctx, suggestion_id, status):
+        if get_guild_data(ctx.guild.id).get('suggestions_enabled', True) is False:
+            return await ctx.reply('❌ نظام الاقتراحات متوقف حاليًا.')
         with connection() as conn:
             row = conn.execute('SELECT * FROM suggestions WHERE guild_id=? AND id=?', (ctx.guild.id, suggestion_id)).fetchone()
             if not row:
