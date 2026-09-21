@@ -178,6 +178,8 @@ class Giveaways(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
     async def set_channel(self, ctx, channel: discord.TextChannel):
+        if get_guild_data(ctx.guild.id).get('giveaways_enabled', True) is False:
+            return await ctx.reply('❌ نظام القيفاواي متوقف حاليًا.')
         update_guild_data(ctx.guild.id, giveaways_channel_id=channel.id)
         await ctx.reply(f'✅ تم تحديد روم القيفاواي: {channel.mention}')
 
