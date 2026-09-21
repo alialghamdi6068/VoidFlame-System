@@ -68,6 +68,8 @@ class AFK(commands.Cog):
     @app_commands.command(name='afk', description='Set your AFK status')
     @app_commands.guild_only()
     async def afk_slash(self, interaction: discord.Interaction, reason: str = 'بدون سبب'):
+        if get_guild_data(interaction.guild.id).get('afk_enabled', True) is False:
+            return await interaction.response.send_message('❌ نظام الغياب متوقف حاليًا.', ephemeral=True)
         reason = reason[:500]
         await self.set_afk(interaction.guild, interaction.user, reason)
         await interaction.response.send_message(f'💤 تم تفعيل الغياب لك.\n**السبب:** {reason}')
