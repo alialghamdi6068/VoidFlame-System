@@ -161,6 +161,8 @@ class Giveaways(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
     async def reroll_prefix(self, ctx, message_id: int):
+        if get_guild_data(ctx.guild.id).get('giveaways_enabled', True) is False:
+            return await ctx.reply('❌ نظام القيفاواي متوقف حاليًا.')
         with connection() as conn:
             row = conn.execute('SELECT * FROM giveaways WHERE guild_id=? AND message_id=? AND ended=1', (ctx.guild.id, message_id)).fetchone()
         if not row:
