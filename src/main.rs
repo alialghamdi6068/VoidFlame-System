@@ -6,7 +6,9 @@ mod moderation;
 mod state;
 
 use anyhow::{Context, Result};
-use std::process::{Command, Stdio};
+use std::process::Stdio;
+use tokio::process::Command;
+use tokio::signal;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -14,10 +16,8 @@ async fn main() -> Result<()> {
         .with_env_filter(std::env::var("RUST_LOG").unwrap_or_else(|_| "voidflame_system=info".into()))
         .init();
 
-    // Keep the complete, already-tested Python feature surface live while the
-    // Rust implementation is migrated behind a stable production entrypoint.
     let python = std::env::var("PYTHON_BIN").unwrap_or_else(|_| "python3".into());
-    tracing::info!("Starting complete VoidFlame runtime through Rust supervisor");
+    tracing::info!("Starting VoidFlame runtime through Rust supervisor");
 
     let mut child = Command::new(&python)
         .arg("bot.py")
@@ -28,9 +28,41 @@ async fn main() -> Result<()> {
         .spawn()
         .with_context(|| format!("failed to start {python} bot.py"))?;
 
-    let status = child.wait().context("VoidFlame runtime stopped unexpectedly")?;
-    if !status.success() {
-        anyhow::bail!("VoidFlame runtime exited with status {status}");
+    tokio::select! {
+        status = child.wait() => {
+            let status = status.context("failed while waiting for VoidFlame runtime")?;
+            if !status.success() {
+                anyhow::bail!("VoidFlame runtime exited with status {status}");
+            }
+        }
+        signal_result = shutdown_signal() => {
+            signal_result.context("failed to listen for shutdown signal")?;
+            tracing::info!("Shutdown requested; stopping VoidFlame runtime");
+            if let Err(error) = child.kill().await {
+                tracing::warn!("Could not stop child process cleanly: {error}");
+            }
+            let _ = child.wait().await;
+        }
     }
+
+    Ok(())
+}
+
+async fn shutdown_signal() -> Result<()> {
+    #[cfg(unix)]
+    {
+        let mut terminate = signal::unix::signal(signal::unix::SignalKind::terminate())
+            .context("failed to install SIGTERM handler")?;
+        tokio::select! {
+            _ = signal::ctrl_c() => {}
+            _ = terminate.recv() => {}
+        }
+    }
+
+    #[cfg(not(unix))]
+    {
+        signal::ctrl_c().await.context("failed to install Ctrl+C handler")?;
+    }
+
     Ok(())
 }
