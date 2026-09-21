@@ -14,7 +14,11 @@
 <body class="landing-page">
 <header class="landing-nav">
   <a class="brand" href="{{ url_for('home') }}"><span>🔥</span> VoidFlame</a>
+  {% if logged_in %}
+  <a class="nav-login" href="{{ url_for('servers') }}">سيرفراتي</a>
+  {% else %}
   <a class="nav-login" href="{{ url_for('login') }}">تسجيل الدخول</a>
+  {% endif %}
 </header>
 <main>
   <section class="landing-hero">
@@ -22,7 +26,7 @@
     <h1>تحكم كامل بسيرفرك<br><span>من مكان واحد.</span></h1>
     <p>VoidFlame يوفر لك لوحة تحكم احترافية لإدارة أنظمة السيرفر، التذاكر، الترحيب، المستويات، الحماية والمزيد بسهولة.</p>
     <div class="hero-actions">
-      <a class="button hero-button" href="{{ url_for('login') }}">ابدأ الآن <span>←</span></a>
+      <a class="button hero-button" href="{{ url_for('servers') if logged_in else url_for('login') }}">ابدأ الآن <span>←</span></a>
       <a class="hero-secondary" href="#features">اكتشف المميزات</a>
     </div>
     <div class="hero-trust"><span>✓</span> آمن عبر Discord OAuth2 <span>•</span> <span>✓</span> بدون مشاركة كلمة المرور</div>
