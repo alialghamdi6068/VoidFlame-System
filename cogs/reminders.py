@@ -73,6 +73,8 @@ class Reminders(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
     async def set_channel(self,ctx,channel:discord.TextChannel):
+        if get_guild_data(ctx.guild.id).get('reminders_enabled', True) is False:
+            return await ctx.reply('❌ نظام التذكيرات متوقف حاليًا.')
         from database import update_guild_data
         update_guild_data(ctx.guild.id,reminder_channel_id=channel.id)
         await ctx.reply(f'✅ تم تحديد روم التذكيرات: {channel.mention}')
