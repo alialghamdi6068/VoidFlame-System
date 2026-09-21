@@ -64,12 +64,18 @@ def manageable_guilds(bot):
 
 
 def require_guild(guild_id, bot):
+    # Flask serves requests from a separate thread while discord.py owns the
+    # gateway cache. During startup/reconnect the cache can be empty briefly.
+    # Wait for readiness first, then give the cache a bounded window to settle.
+    ready_wait_deadline = time.time() + 15
+    while not bot.is_ready() and time.time() < ready_wait_deadline:
+        time.sleep(0.25)
     try:
         guild_id = int(guild_id)
     except (TypeError, ValueError):
         abort(404)
     guild = None
-    for _ in range(8):
+    for _ in range(40):
         try:
             guild = bot.get_guild(guild_id)
             if guild is not None:
