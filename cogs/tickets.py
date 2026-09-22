@@ -128,7 +128,12 @@ class TicketCloseConfirmView(discord.ui.View):
             if opener:
                 await channel.set_permissions(opener, view_channel=False, send_messages=False, read_message_history=False)
             with connection() as conn:
-                conn.execute("UPDATE tickets SET status='closed', closed_at=CURRENT_TIMESTAMP, claimed_by=NULL WHERE channel_id=? AND status='open'", (self.channel_id,))
+                result = conn.execute(
+                    "UPDATE tickets SET status='closed', closed_at=CURRENT_TIMESTAMP, claimed_by=NULL WHERE channel_id=? AND status='open'",
+                    (self.channel_id,),
+                )
+                if result.rowcount != 1:
+                    return await interaction.edit_original_response(content='❌ تم تغيير حالة التذكرة بالفعل.', view=None)
             log_activity(interaction.guild.id, 'ticket_close', str(channel), interaction.user.id)
             try:
                 await self.cog.write_ticket_log(interaction.guild, f'🔒 تم إغلاق التذكرة بواسطة {interaction.user.mention}.')
@@ -414,6 +419,7 @@ class Tickets(commands.Cog):
                 ticket_id = next_number
             template = str(button_config.get('name_template') or settings.get('ticket_name_template') or '🎫・{number}')[:90].strip() or '🎫・{number}'
             channel_name = self.replace_variables(template, guild, user, ticket_id, category, support_role)
+            channel_name = re.sub(r'[\\/]+', '-', channel_name)
             channel_name = re.sub(r'[\\r\\n]+', ' ', channel_name).strip()[:100] or f'🎫・{ticket_id}'
             topic_template = str(button_config.get('topic') or settings.get('ticket_topic') or '').strip()
             if topic_template:
@@ -561,7 +567,12 @@ class Tickets(commands.Cog):
             if opener:
                 await channel.set_permissions(opener, view_channel=True, send_messages=True, read_message_history=True)
             with connection() as conn:
-                conn.execute("UPDATE tickets SET status='open', closed_at=NULL, claimed_by=NULL WHERE channel_id=? AND status='closed'", (channel.id,))
+                result = conn.execute(
+                    "UPDATE tickets SET status='open', closed_at=NULL, claimed_by=NULL WHERE channel_id=? AND status='closed'",
+                    (channel.id,),
+                )
+                if result.rowcount != 1:
+                    return await interaction.edit_original_response(content='❌ تم تغيير حالة التذكرة بالفعل.', view=None)
             log_activity(guild.id, 'ticket_reopen', str(channel), interaction.user.id)
             try:
                 await self.write_ticket_log(guild, f'🔓 تم إعادة فتح التذكرة بواسطة {interaction.user.mention}.')
