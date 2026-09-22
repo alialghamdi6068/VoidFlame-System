@@ -68,7 +68,17 @@ class MemberTicketModal(discord.ui.Modal):
                 message = f'✅ تمت إضافة {member.mention} إلى التذكرة.'
                 action = 'ticket_add_member'
             else:
-                await interaction.channel.set_permissions(member, overwrite=None)
+                row = self.cog.get_ticket_row(interaction.channel.id, 'open')
+                if row and int(row['user_id']) == member.id:
+                    return await interaction.edit_original_response(content='❌ لا يمكن إزالة صاحب التذكرة من تذكرته.')
+                if member.id == interaction.guild.me.id:
+                    return await interaction.edit_original_response(content='❌ لا يمكن إزالة البوت من التذكرة.')
+                await interaction.channel.set_permissions(
+                    member,
+                    view_channel=False,
+                    send_messages=False,
+                    read_message_history=False,
+                )
                 message = f'✅ تمت إزالة {member.mention} من التذكرة.'
                 action = 'ticket_remove_member'
         except discord.Forbidden:
@@ -563,6 +573,46 @@ class Tickets(commands.Cog):
             await interaction.edit_original_response(content='🔓 تم فتح التذكرة. صاحب التذكرة يستطيع رؤيتها الآن.', view=None)
         except (discord.Forbidden, discord.HTTPException):
             return await interaction.edit_original_response(content='❌ ما قدرت أرجع صلاحية صاحب التذكرة. تأكد من صلاحيات البوت.', view=None)
+    def build_panel_payload(self, guild):
+        settings = get_guild_data(guild.id)
+        embed = discord.Embed(
+            title=str(settings.get('ticket_panel_title') or '🎫 نظام التذاكر')[:256],
+            description=str(settings.get('ticket_panel_description') or 'تحتاج مساعدة؟ اختر القسم المناسب من الأزرار بالأسفل.')[:4000],
+            color=discord.Color.blurple(),
+        )
+        embed.set_footer(text=TICKET_FOOTER)
+        buttons = settings.get('ticket_buttons') if 'ticket_buttons' in settings else [{'label': '🎫 فتح تذكرة', 'style': 'success'}]
+        if not isinstance(buttons, list):
+            buttons = []
+        return embed, buttons
+
+    async def refresh_panel(self, guild):
+        if not guild:
+            return False
+        settings = get_guild_data(guild.id)
+        panel_id = settings.get('ticket_panel_channel_id')
+        message_id = settings.get('ticket_panel_message_id')
+        channel = guild.get_channel(int(panel_id)) if panel_id else None
+        if not isinstance(channel, discord.TextChannel):
+            return False
+        embed, buttons = self.build_panel_payload(guild)
+        if not buttons:
+            return False
+        if message_id:
+            try:
+                message = await channel.fetch_message(int(message_id))
+                await message.edit(embed=embed, view=TicketPanelView(self, guild.id, buttons))
+                return True
+            except (discord.NotFound, discord.Forbidden, discord.HTTPException, ValueError):
+                pass
+        try:
+            message = await channel.send(embed=embed, view=TicketPanelView(self, guild.id, buttons))
+        except (discord.Forbidden, discord.HTTPException):
+            return False
+        from database import update_guild_data
+        update_guild_data(guild.id, ticket_panel_message_id=message.id)
+        return True
+
     async def send_panel(self, ctx):
         settings = get_guild_data(ctx.guild.id)
         if settings.get('tickets_enabled', True) is False:
@@ -571,15 +621,24 @@ class Tickets(commands.Cog):
         channel = ctx.guild.get_channel(int(panel_id)) if panel_id else None
         if not isinstance(channel, discord.TextChannel):
             return await ctx.reply('❌ حدد **روم لوحة التذاكر** من الموقع أولاً، ثم استخدم `!تكت`.')
-        embed = discord.Embed(title=str(settings.get('ticket_panel_title') or '🎫 نظام التذاكر')[:256], description=str(settings.get('ticket_panel_description') or 'تحتاج مساعدة؟ اختر القسم المناسب من الأزرار بالأسفل.')[:4000], color=discord.Color.blurple())
-        embed.set_footer(text=TICKET_FOOTER)
-        buttons = settings.get('ticket_buttons') if 'ticket_buttons' in settings else [{'label': '🎫 فتح تذكرة', 'style': 'success'}]
-        if not isinstance(buttons, list):
-            buttons = []
+        embed, buttons = self.build_panel_payload(ctx.guild)
         if not buttons:
             return await ctx.reply('❌ أضف زرًا واحدًا على الأقل من لوحة التحكم أولاً.')
-        await channel.send(embed=embed, view=TicketPanelView(self, ctx.guild.id, buttons))
-        await ctx.reply(f'✅ تم إرسال لوحة التذاكر في {channel.mention}.')
+        message_id = settings.get('ticket_panel_message_id')
+        if message_id:
+            try:
+                message = await channel.fetch_message(int(message_id))
+                await message.edit(embed=embed, view=TicketPanelView(self, ctx.guild.id, buttons))
+                return await ctx.reply(f'✅ تم تحديث لوحة التذاكر في {channel.mention}.')
+            except (discord.NotFound, discord.Forbidden, discord.HTTPException, ValueError):
+                pass
+        try:
+            message = await channel.send(embed=embed, view=TicketPanelView(self, ctx.guild.id, buttons))
+        except (discord.Forbidden, discord.HTTPException):
+            return await ctx.reply('❌ البوت لا يملك صلاحية إرسال لوحة التذاكر في هذا الروم.')
+        from database import update_guild_data
+        update_guild_data(ctx.guild.id, ticket_panel_message_id=message.id)
+        return await ctx.reply(f'✅ تم إرسال لوحة التذاكر في {channel.mention}.')
 
     @commands.command(name='تكت')
     @commands.guild_only()
@@ -653,8 +712,18 @@ class Tickets(commands.Cog):
             return await ctx.reply('❌ نظام التذاكر متوقف حاليًا.')
         if not self.is_ticket_channel(ctx.channel):
             return await ctx.reply('❌ هذا الأمر يعمل داخل تذكرة مفتوحة فقط.')
+        row = self.get_ticket_row(ctx.channel.id, 'open')
+        if row and int(row['user_id']) == member.id:
+            return await ctx.reply('❌ لا يمكن إزالة صاحب التذكرة من تذكرته.')
+        if member.id == ctx.guild.me.id:
+            return await ctx.reply('❌ لا يمكن إزالة البوت من التذكرة.')
         try:
-            await ctx.channel.set_permissions(member, overwrite=None)
+            await ctx.channel.set_permissions(
+                member,
+                view_channel=False,
+                send_messages=False,
+                read_message_history=False,
+            )
         except discord.Forbidden:
             return await ctx.reply('❌ البوت لا يملك صلاحية تعديل صلاحيات القناة.')
         except discord.HTTPException:
@@ -662,6 +731,18 @@ class Tickets(commands.Cog):
         await ctx.reply(f'✅ تمت إزالة {member.mention} من التذكرة.')
         logs=self.bot.get_cog('Logs')
         if logs: await logs.send_log(ctx.guild, 'Ticket Remove Member', f'Channel: {ctx.channel.mention}\nMember: {member.mention}', actor=ctx.author)
+
+    @commands.Cog.listener()
+    async def on_guild_channel_delete(self, channel):
+        row = self.get_ticket_row(channel.id)
+        if not row:
+            return
+        with connection() as conn:
+            conn.execute('DELETE FROM tickets WHERE channel_id=?', (channel.id,))
+        try:
+            await self.write_ticket_log(channel.guild, f'🗑️ تم حذف قناة التذكرة {channel.name} خارج نظام التذاكر.')
+        except Exception:
+            pass
 
     def register_persistent_views(self):
         if self._base_ticket_view is None:
