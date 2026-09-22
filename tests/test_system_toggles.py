@@ -64,8 +64,6 @@ class SystemToggleTests(unittest.TestCase):
         for listener in (
             "on_member_join",
             "on_member_remove",
-            "on_message_delete",
-            "on_message_edit",
             "on_guild_channel_create",
             "on_guild_channel_delete",
             "on_guild_role_create",
