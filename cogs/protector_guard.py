@@ -45,8 +45,24 @@ class ProtectorGuard(commands.Cog):
                 if until <= now:
                     self.cooldowns.pop(key, None)
 
+    @staticmethod
+    def _int_setting(settings, key, default, minimum=0):
+        try:
+            value = int(settings.get(key, default) or default)
+        except (TypeError, ValueError):
+            value = default
+        return max(minimum, value)
+
     def _ids(self, values):
-        return {int(x) for x in values if str(x).isdigit()}
+        if not isinstance(values, (list, tuple, set)):
+            return set()
+        result = set()
+        for value in values:
+            try:
+                result.add(int(value))
+            except (TypeError, ValueError):
+                continue
+        return result
 
     def _trusted(self, member, settings):
         if not member:
@@ -55,50 +71,73 @@ class ProtectorGuard(commands.Cog):
             return True
         if member.id in self._ids(settings.get("trusted_user_ids", [])):
             return True
-        return bool(self._ids(settings.get("trusted_role_ids", [])) & {r.id for r in member.roles})
+        return bool(
+            self._ids(settings.get("trusted_role_ids", []))
+            & {role.id for role in member.roles}
+        )
 
     def _ignored(self, message, settings):
         if not settings.get("protection_enabled", True):
             return True
         if message.author.bot or message.webhook_id:
             return True
-        if message.channel.id in self._ids(settings.get("protection_ignore_channels", [])):
+        if message.channel.id in self._ids(
+            settings.get("protection_ignore_channels", [])
+        ):
             return True
-        return bool(self._ids(settings.get("protection_ignore_roles", [])) & {r.id for r in message.author.roles})
+        return bool(
+            self._ids(settings.get("protection_ignore_roles", []))
+            & {role.id for role in message.author.roles}
+        )
 
     async def _log(self, guild, title, description, actor=None, color=None):
         logs = self.bot.get_cog("Logs")
         if logs:
-            await logs.send_log(guild, title, description, actor=actor, color=color)
+            try:
+                await logs.send_log(
+                    guild, title, description, actor=actor, color=color
+                )
+            except (discord.Forbidden, discord.HTTPException):
+                pass
 
     async def _punish(self, member, settings, reason):
         guild = member.guild
         me = guild.me
         if not me or member == guild.owner or member.top_role >= me.top_role:
             return "hierarchy"
+
         action = str(settings.get("protection_action", "timeout"))
         try:
             if action == "kick" and me.guild_permissions.kick_members:
                 await member.kick(reason=reason)
                 return "kick"
             if me.guild_permissions.moderate_members:
-                minutes = max(1, min(40320, int(settings.get("protection_timeout_minutes", 10))))
-                await member.timeout(timedelta(minutes=minutes), reason=reason)
+                minutes = self._int_setting(
+                    settings, "protection_timeout_minutes", 10, 1
+                )
+                minutes = min(minutes, 40320)
+                await member.timeout(
+                    timedelta(minutes=minutes), reason=reason
+                )
                 return f"timeout {minutes}m"
         except (discord.Forbidden, discord.HTTPException):
             return "failed"
         return "unavailable"
 
     async def _actor(self, guild, action, target_id=None, retries=2):
-        # Audit-log entries can arrive a moment after the Discord event.
         for attempt in range(max(1, retries + 1)):
             try:
                 newest = None
                 async for entry in guild.audit_logs(limit=15, action=action):
-                    age = (discord.utils.utcnow() - entry.created_at).total_seconds()
+                    age = (
+                        discord.utils.utcnow() - entry.created_at
+                    ).total_seconds()
                     if age > 30:
                         break
-                    if target_id is not None and getattr(entry.target, "id", None) != target_id:
+                    if (
+                        target_id is not None
+                        and getattr(entry.target, "id", None) != target_id
+                    ):
                         continue
                     if newest is None or entry.created_at > newest.created_at:
                         newest = entry
@@ -119,7 +158,9 @@ class ProtectorGuard(commands.Cog):
         ):
             try:
                 async for entry in guild.audit_logs(limit=15, action=action):
-                    age = (discord.utils.utcnow() - entry.created_at).total_seconds()
+                    age = (
+                        discord.utils.utcnow() - entry.created_at
+                    ).total_seconds()
                     if age > 30:
                         break
                     target = getattr(entry, "target", None)
@@ -143,43 +184,62 @@ class ProtectorGuard(commands.Cog):
                 ow = channel.overwrites_for(guild.default_role)
                 if ow.send_messages is not False:
                     ow.send_messages = False
-                    await channel.set_permissions(guild.default_role, overwrite=ow, reason="VoidFlame automatic lockdown")
+                    await channel.set_permissions(
+                        guild.default_role,
+                        overwrite=ow,
+                        reason="VoidFlame automatic lockdown",
+                    )
                     changed += 1
             except (discord.Forbidden, discord.HTTPException):
                 continue
         return changed
 
-    async def _nuke_event(self, guild, action_key, audit_action, title, target_id=None):
+    async def _nuke_event(
+        self, guild, action_key, audit_action, title, target_id=None
+    ):
         settings = settings_cache.get(guild.id)
         if not settings.get("protection_enabled", True):
             return
         if not settings.get("mass_change_protection", True):
             return
-        if action_key == "channel_update" and not settings.get("permission_change_protection", True):
+        if action_key in {"channel_update", "role_update"} and not settings.get(
+            "permission_change_protection", True
+        ):
             return
-        if action_key == "role_update" and not settings.get("permission_change_protection", True):
-            return
+
         q = self.actions[(guild.id, action_key)]
         now = time.monotonic()
         q.append(now)
-        window = max(5, int(settings.get("mass_change_window_seconds", 15)))
+        window = self._int_setting(
+            settings, "mass_change_window_seconds", 15, 5
+        )
         while q and now - q[0] > window:
             q.popleft()
-        threshold = max(3, int(settings.get("mass_change_threshold", 5)))
+
+        threshold = self._int_setting(
+            settings, "mass_change_threshold", 5, 3
+        )
         if len(q) < threshold:
             return
-        # Attribute the burst to the actor who performed the most matching recent actions.
+
         actor_candidates = []
         try:
-            async for entry in guild.audit_logs(limit=25, action=audit_action):
-                age = (discord.utils.utcnow() - entry.created_at).total_seconds()
+            async for entry in guild.audit_logs(
+                limit=25, action=audit_action
+            ):
+                age = (
+                    discord.utils.utcnow() - entry.created_at
+                ).total_seconds()
                 if age > window + 5:
                     break
-                actor_id = getattr(entry.user, 'id', None)
+                actor_id = getattr(entry.user, "id", None)
                 if actor_id:
-                    actor_candidates.append((entry.created_at, actor_id, entry.user))
+                    actor_candidates.append(
+                        (entry.created_at, actor_id, entry.user)
+                    )
         except (discord.Forbidden, discord.HTTPException):
             actor_candidates = []
+
         actor = None
         if actor_candidates:
             counts = defaultdict(int)
@@ -189,172 +249,400 @@ class ProtectorGuard(commands.Cog):
                 newest_by_actor[actor_id] = (created_at, user)
             actor_id = max(counts, key=counts.get)
             actor = newest_by_actor[actor_id][1]
+
         cooldown_key = ("nuke", guild.id, action_key)
         if now < self.cooldowns.get(cooldown_key, 0):
             return
         self.cooldowns[cooldown_key] = now + 45
+
         if actor is None:
             actor = await self._actor(guild, audit_action, target_id)
-        if actor and actor.id == self.bot.user.id:
-            await self._log(guild, title + " Burst", f"Detected {len(q)} events in {window}s\nActor: bot itself; no punishment.", actor, discord.Color.orange())
+
+        if actor and self.bot.user and actor.id == self.bot.user.id:
+            await self._log(
+                guild,
+                title + " Burst",
+                f"Detected {len(q)} events in {window}s\n"
+                "Actor: bot itself; no punishment.",
+                actor,
+                discord.Color.orange(),
+            )
             return
+
         if actor and self._trusted(actor, settings):
-            await self._log(guild, title + " Burst", f"Detected {len(q)} events in {window}s\nActor: {actor.mention}\nActor is trusted; no punishment.", actor, discord.Color.orange())
+            await self._log(
+                guild,
+                title + " Burst",
+                f"Detected {len(q)} events in {window}s\n"
+                f"Actor: {actor.mention}\n"
+                "Actor is trusted; no punishment.",
+                actor,
+                discord.Color.orange(),
+            )
             return
+
         action = "logged"
-        if actor and settings.get("mass_change_action", "log") == "kick" and guild.me and guild.me.guild_permissions.kick_members and actor != guild.owner:
-            if actor.top_role < guild.me.top_role:
-                try:
-                    await actor.kick(reason="VoidFlame anti-nuke: mass server changes")
-                    action = "kick"
-                except (discord.Forbidden, discord.HTTPException):
-                    action = "kick_failed"
+        if (
+            actor
+            and settings.get("mass_change_action", "log") == "kick"
+            and guild.me
+            and guild.me.guild_permissions.kick_members
+            and actor != guild.owner
+            and actor.top_role < guild.me.top_role
+        ):
+            try:
+                await actor.kick(
+                    reason="VoidFlame anti-nuke: mass server changes"
+                )
+                action = "kick"
+            except (discord.Forbidden, discord.HTTPException):
+                action = "kick_failed"
+
         if settings.get("mass_change_lockdown", False):
             locked = await self._lockdown(guild)
             action += f" + lockdown ({locked} channels)"
-        await self._log(guild, title + " Burst", f"Detected {len(q)} {action_key.replace('_',' ')} events in {window}s\nActor: {actor.mention if actor else 'Unknown'}\nAction: {action}", actor, discord.Color.red())
+
+        await self._log(
+            guild,
+            title + " Burst",
+            f"Detected {len(q)} {action_key.replace('_', ' ')} events in {window}s\n"
+            f"Actor: {actor.mention if actor else 'Unknown'}\n"
+            f"Action: {action}",
+            actor,
+            discord.Color.red(),
+        )
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        if not message.guild or not message.content or self._ignored(message, settings_cache.get(message.guild.id)):
+        if not message.guild or not message.content:
             return
+
         settings = settings_cache.get(message.guild.id)
+        if self._ignored(message, settings):
+            return
+
         now = time.monotonic()
         key = (message.guild.id, message.author.id)
+
         q = self.messages[key]
         q.append(now)
-        window = max(2, int(settings.get("spam_window_seconds", 8)))
-        limit = max(3, int(settings.get("spam_message_limit", 7)))
+        window = self._int_setting(settings, "spam_window_seconds", 8, 2)
+        limit = self._int_setting(settings, "spam_message_limit", 7, 3)
         while q and now - q[0] > window:
             q.popleft()
+
         if len(q) >= limit and now >= self.cooldowns.get(("spam", key), 0):
             self.cooldowns[("spam", key)] = now + 15
-            if message.guild.me and message.channel.permissions_for(message.guild.me).manage_messages:
+            if (
+                message.guild.me
+                and message.channel.permissions_for(
+                    message.guild.me
+                ).manage_messages
+            ):
                 try:
                     await message.delete()
                 except discord.HTTPException:
                     pass
-            action = await self._punish(message.author, settings, "Anti-spam protection")
-            await self._log(message.guild, "Anti-Spam", f"Member: {message.author.mention}\nChannel: {message.channel.mention}\nMessages: {len(q)} in {window}s\nAction: {action}", message.author, discord.Color.orange())
+            action = await self._punish(
+                message.author, settings, "Anti-spam protection"
+            )
+            await self._log(
+                message.guild,
+                "Anti-Spam",
+                f"Member: {message.author.mention}\n"
+                f"Channel: {message.channel.mention}\n"
+                f"Messages: {len(q)} in {window}s\n"
+                f"Action: {action}",
+                message.author,
+                discord.Color.orange(),
+            )
 
         mentions = len(message.mentions) + len(message.role_mentions)
-        if mentions >= max(3, int(settings.get("mention_limit", 5))):
+        mention_limit = self._int_setting(
+            settings, "mention_limit", 5, 3
+        )
+        if mentions >= mention_limit:
             mq = self.mentions[key]
             mq.append(now)
             while mq and now - mq[0] > 20:
                 mq.popleft()
             if now >= self.cooldowns.get(("mention", key), 0):
                 self.cooldowns[("mention", key)] = now + 20
-                if message.guild.me and message.channel.permissions_for(message.guild.me).manage_messages:
+                if (
+                    message.guild.me
+                    and message.channel.permissions_for(
+                        message.guild.me
+                    ).manage_messages
+                ):
                     try:
                         await message.delete()
                     except discord.HTTPException:
                         pass
-                action = await self._punish(message.author, settings, "Anti-mention-spam protection")
-                await self._log(message.guild, "Mention Spam", f"Member: {message.author.mention}\nChannel: {message.channel.mention}\nMentions: {mentions}\nAction: {action}", message.author, discord.Color.red())
+                action = await self._punish(
+                    message.author,
+                    settings,
+                    "Anti-mention-spam protection",
+                )
+                await self._log(
+                    message.guild,
+                    "Mention Spam",
+                    f"Member: {message.author.mention}\n"
+                    f"Channel: {message.channel.mention}\n"
+                    f"Mentions: {mentions}\n"
+                    f"Action: {action}",
+                    message.author,
+                    discord.Color.red(),
+                )
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
         settings = settings_cache.get(member.guild.id)
         if not settings.get("anti_raid_enabled", True):
             return
+
         now = time.monotonic()
         q = self.joins[member.guild.id]
         q.append((now, member.id))
-        window = max(5, int(settings.get("raid_window_seconds", 20)))
+        window = self._int_setting(settings, "raid_window_seconds", 20, 5)
         while q and now - q[0][0] > window:
             q.popleft()
-        threshold = max(3, int(settings.get("raid_join_threshold", 8)))
+
+        threshold = self._int_setting(
+            settings, "raid_join_threshold", 8, 3
+        )
         if len(q) < threshold:
             return
         if now < self.cooldowns.get(("raid", member.guild.id), 0):
             return
         self.cooldowns[("raid", member.guild.id)] = now + 60
 
-        recent_ids = list(dict.fromkeys(member_id for joined_at, member_id in q if now - joined_at <= window))
+        # Never let one raid event trigger an unbounded sequence of API calls.
+        recent_ids = list(
+            dict.fromkeys(
+                member_id
+                for joined_at, member_id in q
+                if now - joined_at <= window
+            )
+        )[:50]
+
         action = "detected"
         punished = 0
-        if settings.get("raid_action", "timeout") == "timeout" and member.guild.me and member.guild.me.guild_permissions.moderate_members:
-            minutes = max(1, min(40320, int(settings.get("raid_timeout_minutes", 10))))
+        me = member.guild.me
+        if (
+            settings.get("raid_action", "timeout") == "timeout"
+            and me
+            and me.guild_permissions.moderate_members
+        ):
+            minutes = self._int_setting(
+                settings, "raid_timeout_minutes", 10, 1
+            )
+            minutes = min(minutes, 40320)
             for member_id in recent_ids:
                 target = member.guild.get_member(member_id)
-                if not target or target.bot or target == member.guild.owner or target.top_role >= member.guild.me.top_role:
+                if (
+                    not target
+                    or target.bot
+                    or target == member.guild.owner
+                    or target.top_role >= me.top_role
+                ):
                     continue
                 try:
-                    await target.timeout(timedelta(minutes=minutes), reason="Anti-raid protection")
+                    await target.timeout(
+                        timedelta(minutes=minutes),
+                        reason="Anti-raid protection",
+                    )
                     punished += 1
                 except (discord.Forbidden, discord.HTTPException):
                     continue
-            action = f"timeout {minutes}m ({punished}/{len(recent_ids)} members)"
-        await self._log(member.guild, "Anti-Raid", f"Join burst: {len(recent_ids)} members in {window}s\nLatest: {member.mention}\nAction: {action}", member, discord.Color.red())
+            action = (
+                f"timeout {minutes}m "
+                f"({punished}/{len(recent_ids)} members)"
+            )
+
+        await self._log(
+            member.guild,
+            "Anti-Raid",
+            f"Join burst: {len(recent_ids)} members in {window}s\n"
+            f"Latest: {member.mention}\n"
+            f"Action: {action}",
+            member,
+            discord.Color.red(),
+        )
 
     @commands.Cog.listener()
     async def on_guild_channel_create(self, channel):
-        await self._nuke_event(channel.guild, "channel_create", discord.AuditLogAction.channel_create, "Channel Create", channel.id)
+        await self._nuke_event(
+            channel.guild,
+            "channel_create",
+            discord.AuditLogAction.channel_create,
+            "Channel Create",
+            channel.id,
+        )
 
     @commands.Cog.listener()
     async def on_guild_channel_delete(self, channel):
-        await self._nuke_event(channel.guild, "channel_delete", discord.AuditLogAction.channel_delete, "Channel Delete", channel.id)
+        await self._nuke_event(
+            channel.guild,
+            "channel_delete",
+            discord.AuditLogAction.channel_delete,
+            "Channel Delete",
+            channel.id,
+        )
 
     @commands.Cog.listener()
     async def on_guild_channel_update(self, before, after):
-        if before.overwrites != after.overwrites or before.name != after.name or before.category_id != after.category_id:
-            await self._nuke_event(after.guild, "channel_update", discord.AuditLogAction.channel_update, "Channel Permission/Update", after.id)
+        if (
+            before.overwrites != after.overwrites
+            or before.name != after.name
+            or before.category_id != after.category_id
+        ):
+            await self._nuke_event(
+                after.guild,
+                "channel_update",
+                discord.AuditLogAction.channel_update,
+                "Channel Permission/Update",
+                after.id,
+            )
 
     @commands.Cog.listener()
     async def on_guild_role_create(self, role):
-        await self._nuke_event(role.guild, "role_create", discord.AuditLogAction.role_create, "Role Create", role.id)
+        await self._nuke_event(
+            role.guild,
+            "role_create",
+            discord.AuditLogAction.role_create,
+            "Role Create",
+            role.id,
+        )
 
     @commands.Cog.listener()
     async def on_guild_role_delete(self, role):
-        await self._nuke_event(role.guild, "role_delete", discord.AuditLogAction.role_delete, "Role Delete", role.id)
+        await self._nuke_event(
+            role.guild,
+            "role_delete",
+            discord.AuditLogAction.role_delete,
+            "Role Delete",
+            role.id,
+        )
 
     @commands.Cog.listener()
     async def on_guild_update(self, before, after):
         settings = settings_cache.get(after.id)
-        if not settings.get('guild_update_protection', True):
+        if not settings.get("guild_update_protection", True):
             return
+
         changed = []
-        if before.name != after.name: changed.append('name')
-        if before.icon != after.icon: changed.append('icon')
-        if before.verification_level != after.verification_level: changed.append('verification')
-        if not changed: return
+        if before.name != after.name:
+            changed.append("name")
+        if before.icon != after.icon:
+            changed.append("icon")
+        if before.verification_level != after.verification_level:
+            changed.append("verification")
+        if not changed:
+            return
+
         actor = await self._actor(after, discord.AuditLogAction.guild_update)
         if actor and self.bot.user and actor.id == self.bot.user.id:
-            await self._log(after, 'Guild Security', f"Changes: {', '.join(changed)}\\nActor: bot itself; no punishment.", actor, discord.Color.orange())
+            await self._log(
+                after,
+                "Guild Security",
+                f"Changes: {', '.join(changed)}\n"
+                "Actor: bot itself; no punishment.",
+                actor,
+                discord.Color.orange(),
+            )
             return
+
         if actor and self._trusted(actor, settings):
-            await self._log(after, 'Guild Security', f"Changes: {', '.join(changed)}\\nActor: {actor.mention}\\nTrusted: yes", actor, discord.Color.orange())
+            await self._log(
+                after,
+                "Guild Security",
+                f"Changes: {', '.join(changed)}\n"
+                f"Actor: {actor.mention}\nTrusted: yes",
+                actor,
+                discord.Color.orange(),
+            )
             return
-        action = 'logged'
-        if actor and settings.get('mass_change_action', 'log') == 'kick' and after.me and after.me.guild_permissions.kick_members and actor != after.owner and actor.top_role < after.me.top_role:
+
+        action = "logged"
+        me = after.me
+        if (
+            actor
+            and settings.get("mass_change_action", "log") == "kick"
+            and me
+            and me.guild_permissions.kick_members
+            and actor != after.owner
+            and actor.top_role < me.top_role
+        ):
             try:
-                await actor.kick(reason='VoidFlame guild settings protection')
-                action = 'kick'
+                await actor.kick(
+                    reason="VoidFlame guild settings protection"
+                )
+                action = "kick"
             except (discord.Forbidden, discord.HTTPException):
-                action = 'kick_failed'
-        await self._log(after, 'Guild Security', f"Changes: {', '.join(changed)}\\nActor: {actor.mention if actor else 'Unknown'}\\nAction: {action}", actor, discord.Color.red())
+                action = "kick_failed"
+
+        await self._log(
+            after,
+            "Guild Security",
+            f"Changes: {', '.join(changed)}\n"
+            f"Actor: {actor.mention if actor else 'Unknown'}\n"
+            f"Action: {action}",
+            actor,
+            discord.Color.red(),
+        )
 
     @commands.Cog.listener()
     async def on_guild_role_update(self, before, after):
-        if before.permissions != after.permissions or before.name != after.name or before.position != after.position:
-            await self._nuke_event(after.guild, "role_update", discord.AuditLogAction.role_update, "Role Permission/Update", after.id)
+        if (
+            before.permissions != after.permissions
+            or before.name != after.name
+            or before.position != after.position
+        ):
+            await self._nuke_event(
+                after.guild,
+                "role_update",
+                discord.AuditLogAction.role_update,
+                "Role Permission/Update",
+                after.id,
+            )
 
     @commands.Cog.listener()
     async def on_webhooks_update(self, channel):
         settings = settings_cache.get(channel.guild.id)
         if not settings.get("webhook_protection", True):
             return
-        actor = await self._recent_webhook_actor(channel.guild, channel.id)
+
+        actor = await self._recent_webhook_actor(
+            channel.guild, channel.id
+        )
         if actor and not self._trusted(actor, settings):
             action = "logged"
-            if settings.get("mass_change_action", "log") == "kick" and channel.guild.me and channel.guild.me.guild_permissions.kick_members and actor != channel.guild.owner and actor.top_role < channel.guild.me.top_role:
+            me = channel.guild.me
+            if (
+                settings.get("mass_change_action", "log") == "kick"
+                and me
+                and me.guild_permissions.kick_members
+                and actor != channel.guild.owner
+                and actor.top_role < me.top_role
+            ):
                 try:
-                    await actor.kick(reason="VoidFlame webhook abuse protection")
+                    await actor.kick(
+                        reason="VoidFlame webhook abuse protection"
+                    )
                     action = "kick"
                 except (discord.Forbidden, discord.HTTPException):
                     action = "kick_failed"
-            await self._log(channel.guild, "Webhook Security", f"Channel: {channel.mention}\nActor: {actor.mention}\nAction: {action}", actor, discord.Color.red())
+
+            await self._log(
+                channel.guild,
+                "Webhook Security",
+                f"Channel: {channel.mention}\n"
+                f"Actor: {actor.mention}\n"
+                f"Action: {action}",
+                actor,
+                discord.Color.red(),
+            )
+
 
 async def setup(bot):
     await bot.add_cog(ProtectorGuard(bot))
