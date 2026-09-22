@@ -8,7 +8,7 @@ from services.settings_cache import settings_cache
 
 ALLOWED_SETTINGS = {
     'welcome_channel_id', 'welcome_message', 'auto_role_id', 'log_channel_id',
-    'ticket_category_id', 'ticket_panel_channel_id', 'ticket_panel_message_id', 'ticket_support_role_id',
+    'ticket_category_id', 'ticket_panel_channel_id', 'ticket_support_role_id',
     'ticket_panel_title', 'ticket_panel_description', 'ticket_name_template', 'ticket_topic',
     'applications_channel_id',
     'suggestions_channel_id',
@@ -26,7 +26,7 @@ SYSTEM_ENABLED_SETTINGS = {
 
 INTEGER_SETTINGS = {
     'welcome_channel_id', 'auto_role_id', 'log_channel_id', 'ticket_category_id',
-    'ticket_panel_channel_id', 'ticket_panel_message_id', 'ticket_support_role_id',
+    'ticket_panel_channel_id', 'ticket_support_role_id',
     'applications_channel_id',
     'suggestions_channel_id',
     'level_channel_id', 'giveaways_channel_id', 'autoreply_channel_id',
@@ -239,7 +239,7 @@ def register_api(app, bot):
                 if not isinstance(value, list):
                     return jsonify({'ok': False, 'error': f'القيمة غير صحيحة: {key}'}), 400
                 value = [str(x)[:30] for x in value[:100]]
-            elif key in {'welcome_message', 'ticket_panel_title', 'ticket_panel_description', 'ticket_name_template', 'warn_dm_message'}:
+            elif key in {'welcome_message', 'ticket_panel_title', 'ticket_panel_description', 'ticket_name_template', 'ticket_topic', 'warn_dm_message'}:
                 value = str(value)
                 limits = {'welcome_message': 2000, 'ticket_panel_title': 256, 'ticket_panel_description': 4000, 'ticket_name_template': 100, 'ticket_topic': 1024, 'warn_dm_message': 2000}
                 value = value[:limits[key]]
