@@ -737,16 +737,9 @@ class Tickets(commands.Cog):
 
     @commands.Cog.listener()
     async def on_guild_channel_delete(self, channel):
-        row = self.get_ticket_row(channel.id)
-        if not row:
-            return
+        # Keep the database clean when a ticket channel is deleted manually.
         with connection() as conn:
             conn.execute('DELETE FROM tickets WHERE channel_id=?', (channel.id,))
-        try:
-            await self.write_ticket_log(channel.guild, f'🗑️ تم حذف قناة التذكرة {channel.name} خارج نظام التذاكر.')
-        except Exception:
-            pass
-
     def register_persistent_views(self):
         if self._base_ticket_view is None:
             self._base_ticket_view = TicketView(self)
