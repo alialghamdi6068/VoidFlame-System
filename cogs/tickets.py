@@ -274,10 +274,10 @@ class Tickets(commands.Cog):
         if not guild:
             return await interaction.response.send_message('❌ هذا الزر يعمل داخل السيرفر فقط.', ephemeral=True)
         settings = get_guild_data(guild.id)
-        if not interaction.response.is_done():
-            await interaction.response.defer(ephemeral=True)
         if settings.get('tickets_enabled', True) is False:
             return await interaction.response.send_message('❌ نظام التذاكر متوقف حاليًا.', ephemeral=True)
+        if not interaction.response.is_done():
+            await interaction.response.defer(ephemeral=True)
         button_config = button_config or {}
         category_id = button_config.get('category_id') or settings.get('ticket_category_id')
         support_role_id = button_config.get('support_role_id') or settings.get('ticket_support_role_id')
