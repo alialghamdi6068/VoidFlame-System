@@ -46,6 +46,104 @@ class Logs(commands.Cog):
                 pass
         log_activity(guild.id, title, str(description)[:4000], user_id)
 
+    @commands.Cog.listener()
+    async def on_member_join(self, member):
+        await self.send_log(
+            member.guild,
+            "Member Joined",
+            f"Member: {member.mention} (`{member.id}`)\\nAccount created: <t:{int(member.created_at.timestamp())}:R>",
+            actor=member,
+            color=discord.Color.green(),
+        )
+
+    @commands.Cog.listener()
+    async def on_member_remove(self, member):
+        await self.send_log(
+            member.guild,
+            "Member Left",
+            f"Member: {member} (`{member.id}`)",
+            actor=member,
+            color=discord.Color.orange(),
+        )
+
+    @commands.Cog.listener()
+    async def on_message_delete(self, message):
+        if not message.guild or message.author.bot:
+            return
+        await self.send_log(
+            message.guild,
+            "Message Deleted",
+            f"Author: {message.author.mention} (`{message.author.id}`)\\nChannel: {message.channel.mention} (`{message.channel.id}`)",
+            actor=message.author,
+            color=discord.Color.red(),
+        )
+
+    @commands.Cog.listener()
+    async def on_message_edit(self, before, after):
+        if not before.guild or before.author.bot or before.content == after.content:
+            return
+        await self.send_log(
+            before.guild,
+            "Message Edited",
+            f"Author: {before.author.mention} (`{before.author.id}`)\\nChannel: {before.channel.mention} (`{before.channel.id}`)",
+            actor=before.author,
+            color=discord.Color.orange(),
+        )
+
+    @commands.Cog.listener()
+    async def on_guild_channel_create(self, channel):
+        await self.send_log(
+            channel.guild,
+            "Channel Created",
+            f"Channel: {channel.mention} (`{channel.id}`)",
+            color=discord.Color.green(),
+        )
+
+    @commands.Cog.listener()
+    async def on_guild_channel_delete(self, channel):
+        await self.send_log(
+            channel.guild,
+            "Channel Deleted",
+            f"Channel: #{channel.name} (`{channel.id}`)",
+            color=discord.Color.red(),
+        )
+
+    @commands.Cog.listener()
+    async def on_guild_role_create(self, role):
+        await self.send_log(
+            role.guild,
+            "Role Created",
+            f"Role: {role.mention} (`{role.id}`)",
+            color=discord.Color.green(),
+        )
+
+    @commands.Cog.listener()
+    async def on_guild_role_delete(self, role):
+        await self.send_log(
+            role.guild,
+            "Role Deleted",
+            f"Role: {role.name} (`{role.id}`)",
+            color=discord.Color.red(),
+        )
+
+    @commands.Cog.listener()
+    async def on_member_ban(self, guild, user):
+        await self.send_log(
+            guild,
+            "Member Banned",
+            f"Member: {user} (`{user.id}`)",
+            color=discord.Color.red(),
+        )
+
+    @commands.Cog.listener()
+    async def on_member_unban(self, guild, user):
+        await self.send_log(
+            guild,
+            "Member Unbanned",
+            f"Member: {user} (`{user.id}`)",
+            color=discord.Color.green(),
+        )
+
     @commands.command(name='لوق')
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
