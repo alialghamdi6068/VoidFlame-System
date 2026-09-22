@@ -61,7 +61,7 @@ class MemberTicketModal(discord.ui.Modal):
             except (ValueError, discord.NotFound, discord.HTTPException):
                 member = None
         if not member:
-            return await interaction.response.send_message('❌ لم أجد هذا العضو. أرسل الـ ID أو المنشن الصحيح.', ephemeral=True)
+            return await interaction.edit_original_response(content='❌ لم أجد هذا العضو. أرسل الـ ID أو المنشن الصحيح.')
         if self.action == 'add':
             await interaction.channel.set_permissions(member, view_channel=True, send_messages=True, read_message_history=True)
             await interaction.followup.send(f'✅ تمت إضافة {member.mention} إلى التذكرة.', ephemeral=True)
@@ -109,7 +109,7 @@ class TicketCloseConfirmView(discord.ui.View):
             if opener:
                 await channel.set_permissions(opener, view_channel=False, send_messages=False, read_message_history=False)
             with connection() as conn:
-                conn.execute("UPDATE tickets SET status='closed', closed_at=CURRENT_TIMESTAMP WHERE channel_id=? AND status='open'", (self.channel_id,))
+                conn.execute("UPDATE tickets SET status='closed', closed_at=CURRENT_TIMESTAMP, claimed_by=NULL WHERE channel_id=? AND status='open'", (self.channel_id,))
             log_activity(interaction.guild.id, 'ticket_close', str(channel), interaction.user.id)
             try:
                 await self.cog.write_ticket_log(interaction.guild, f'🔒 تم إغلاق التذكرة بواسطة {interaction.user.mention}.')
@@ -524,7 +524,7 @@ class Tickets(commands.Cog):
         try:
             await channel.set_permissions(opener, view_channel=True, send_messages=True, read_message_history=True)
             with connection() as conn:
-                conn.execute("UPDATE tickets SET status='open', closed_at=NULL WHERE channel_id=? AND status='closed'", (channel.id,))
+                conn.execute("UPDATE tickets SET status='open', closed_at=NULL, claimed_by=NULL WHERE channel_id=? AND status='closed'", (channel.id,))
             log_activity(guild.id, 'ticket_reopen', str(channel), interaction.user.id)
             try:
                 await self.write_ticket_log(guild, f'🔓 تم إعادة فتح التذكرة بواسطة {interaction.user.mention}.')
