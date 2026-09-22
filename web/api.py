@@ -1,3 +1,4 @@
+import asyncio
 import time
 from flask import request, jsonify
 from database import get_guild_data, update_guild_data, log_activity
@@ -7,7 +8,7 @@ from services.settings_cache import settings_cache
 
 ALLOWED_SETTINGS = {
     'welcome_channel_id', 'welcome_message', 'auto_role_id', 'log_channel_id',
-    'ticket_category_id', 'ticket_panel_channel_id', 'ticket_support_role_id',
+    'ticket_category_id', 'ticket_panel_channel_id', 'ticket_panel_message_id', 'ticket_support_role_id',
     'ticket_panel_title', 'ticket_panel_description', 'ticket_name_template', 'ticket_topic',
     'applications_channel_id',
     'suggestions_channel_id',
@@ -25,7 +26,7 @@ SYSTEM_ENABLED_SETTINGS = {
 
 INTEGER_SETTINGS = {
     'welcome_channel_id', 'auto_role_id', 'log_channel_id', 'ticket_category_id',
-    'ticket_panel_channel_id', 'ticket_support_role_id',
+    'ticket_panel_channel_id', 'ticket_panel_message_id', 'ticket_support_role_id',
     'applications_channel_id',
     'suggestions_channel_id',
     'level_channel_id', 'giveaways_channel_id', 'autoreply_channel_id',
@@ -272,6 +273,15 @@ def register_api(app, bot):
         changed_keys = sorted({key for key in (ALLOWED_SETTINGS | SYSTEM_ENABLED_SETTINGS) if key in payload} | ({'ticket_buttons'} if 'ticket_buttons' in payload else set()) | ({'level_rewards'} if 'level_rewards' in payload else set()) | ({'warning_escalation'} if 'warning_escalation' in payload else set()) | ({'autoreplies'} if action in ('add', 'delete') else set()))
         update_guild_data(guild_id, **data)
         settings_cache.invalidate(guild_id)
+        tickets_cog = bot.get_cog('Tickets')
+        if tickets_cog and getattr(bot, 'loop', None) and bot.loop.is_running():
+            try:
+                future = asyncio.run_coroutine_threadsafe(tickets_cog.refresh_panel(guild), bot.loop)
+                future.result(timeout=5)
+            except Exception:
+                # Dashboard saving must not fail because Discord is reconnecting
+                # or the panel channel/message is temporarily unavailable.
+                pass
         if changed_keys:
             log_activity(guild_id, 'dashboard_settings_update', ', '.join(changed_keys)[:500])
         return jsonify({'ok': True, 'settings': get_guild_data(guild_id)})
