@@ -274,6 +274,8 @@ class Tickets(commands.Cog):
         if not guild:
             return await interaction.response.send_message('❌ هذا الزر يعمل داخل السيرفر فقط.', ephemeral=True)
         settings = get_guild_data(guild.id)
+        if not interaction.response.is_done():
+            await interaction.response.defer(ephemeral=True)
         if settings.get('tickets_enabled', True) is False:
             return await interaction.response.send_message('❌ نظام التذاكر متوقف حاليًا.', ephemeral=True)
         button_config = button_config or {}
@@ -291,8 +293,6 @@ class Tickets(commands.Cog):
             with connection() as conn:
                 conn.execute('UPDATE tickets SET status="closed", closed_at=CURRENT_TIMESTAMP WHERE channel_id=? AND status="open"', (int(existing_row['channel_id']),))
         try:
-            if not interaction.response.is_done():
-                await interaction.response.defer(ephemeral=True)
             channel = await guild.create_text_channel(f'ticket-pending-{user.id}', category=category, overwrites=self.ticket_overwrites(guild, user, support_role_id), reason='Flame ticket')
         except discord.Forbidden:
             return await interaction.followup.send('❌ البوت لا يملك Manage Channels لإنشاء التذكرة.', ephemeral=True)
@@ -338,7 +338,7 @@ class Tickets(commands.Cog):
                 existing_id = str(exc).split(':', 1)[1]
                 existing = guild.get_channel(int(existing_id))
                 if existing:
-                    return await interaction.response.send_message(f'❌ عندك تذكرة مفتوحة بالفعل: {existing.mention}', ephemeral=True)
+                    return await interaction.followup.send(f'❌ عندك تذكرة مفتوحة بالفعل: {existing.mention}', ephemeral=True)
             return await interaction.followup.send('❌ تعذر حفظ التذكرة في قاعدة البيانات.', ephemeral=True)
         except Exception:
             try:
