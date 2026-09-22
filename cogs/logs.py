@@ -67,30 +67,6 @@ class Logs(commands.Cog):
         )
 
     @commands.Cog.listener()
-    async def on_message_delete(self, message):
-        if not message.guild or message.author.bot:
-            return
-        await self.send_log(
-            message.guild,
-            "Message Deleted",
-            f"Author: {message.author.mention} (`{message.author.id}`)\\nChannel: {message.channel.mention} (`{message.channel.id}`)",
-            actor=message.author,
-            color=discord.Color.red(),
-        )
-
-    @commands.Cog.listener()
-    async def on_message_edit(self, before, after):
-        if not before.guild or before.author.bot or before.content == after.content:
-            return
-        await self.send_log(
-            before.guild,
-            "Message Edited",
-            f"Author: {before.author.mention} (`{before.author.id}`)\\nChannel: {before.channel.mention} (`{before.channel.id}`)",
-            actor=before.author,
-            color=discord.Color.orange(),
-        )
-
-    @commands.Cog.listener()
     async def on_guild_channel_create(self, channel):
         await self.send_log(
             channel.guild,
