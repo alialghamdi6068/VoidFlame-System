@@ -50,6 +50,7 @@ class MemberTicketModal(discord.ui.Modal):
             return await interaction.response.send_message('❌ هذا الزر للإدارة فقط.', ephemeral=True)
         if not self.cog.is_ticket_channel(interaction.channel):
             return await interaction.response.send_message('❌ هذه القناة ليست تذكرة مفتوحة.', ephemeral=True)
+        await interaction.response.defer(ephemeral=True)
         raw = str(self.member_input.value).strip()
         match = re.search(r'(\d{15,25})', raw)
         member_id = int(match.group(1)) if match else None
@@ -63,11 +64,11 @@ class MemberTicketModal(discord.ui.Modal):
             return await interaction.response.send_message('❌ لم أجد هذا العضو. أرسل الـ ID أو المنشن الصحيح.', ephemeral=True)
         if self.action == 'add':
             await interaction.channel.set_permissions(member, view_channel=True, send_messages=True, read_message_history=True)
-            await interaction.response.send_message(f'✅ تمت إضافة {member.mention} إلى التذكرة.')
+            await interaction.followup.send(f'✅ تمت إضافة {member.mention} إلى التذكرة.', ephemeral=True)
             log_activity(interaction.guild.id, 'ticket_add_member', str(member.id), interaction.user.id)
         else:
             await interaction.channel.set_permissions(member, overwrite=None)
-            await interaction.response.send_message(f'✅ تمت إزالة {member.mention} من التذكرة.')
+            await interaction.followup.send(f'✅ تمت إزالة {member.mention} من التذكرة.', ephemeral=True)
             log_activity(interaction.guild.id, 'ticket_remove_member', str(member.id), interaction.user.id)
 
 
@@ -87,16 +88,17 @@ class TicketCloseConfirmView(discord.ui.View):
     @discord.ui.button(label='تأكيد الإغلاق', style=discord.ButtonStyle.danger, emoji='🔒')
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not interaction.guild:
-            return await interaction.response.edit_message(content='❌ هذا الإجراء يعمل داخل السيرفر فقط.', view=None)
+            return await interaction.edit_original_response(content='❌ هذا الإجراء يعمل داخل السيرفر فقط.', view=None)
         if get_guild_data(interaction.guild.id).get('tickets_enabled', True) is False:
-            return await interaction.response.edit_message(content='❌ نظام التذاكر متوقف حاليًا.', view=None)
+            return await interaction.edit_original_response(content='❌ نظام التذاكر متوقف حاليًا.', view=None)
+        await interaction.response.defer(ephemeral=True)
         channel = interaction.guild.get_channel(self.channel_id)
         if not channel:
-            return await interaction.response.edit_message(content='❌ لم تعد قناة التذكرة موجودة.', view=None)
+            return await interaction.edit_original_response(content='❌ لم تعد قناة التذكرة موجودة.', view=None)
         with connection() as conn:
             row = conn.execute('SELECT * FROM tickets WHERE channel_id=? AND status="open"', (self.channel_id,)).fetchone()
         if not row:
-            return await interaction.response.edit_message(content='❌ هذه التذكرة مغلقة أو غير موجودة.', view=None)
+            return await interaction.edit_original_response(content='❌ هذه التذكرة مغلقة أو غير موجودة.', view=None)
         opener = interaction.guild.get_member(int(row['user_id']))
         if not opener:
             try:
@@ -113,10 +115,10 @@ class TicketCloseConfirmView(discord.ui.View):
                 await self.cog.write_ticket_log(interaction.guild, f'🔒 تم إغلاق التذكرة بواسطة {interaction.user.mention}.')
             except Exception:
                 pass
-            await interaction.response.edit_message(content='🔒 تم إغلاق التذكرة. اختر الإجراء المطلوب:', view=TicketCloseActionView(self.cog, self.channel_id, self.user_id, show_delete=interaction.user.guild_permissions.manage_channels))
+            await interaction.edit_original_response(content='🔒 تم إغلاق التذكرة. اختر الإجراء المطلوب:', view=TicketCloseActionView(self.cog, self.channel_id, self.user_id, show_delete=interaction.user.guild_permissions.manage_channels))
             self.stop()
         except (discord.Forbidden, discord.HTTPException):
-            return await interaction.response.edit_message(content='❌ ما قدرت أقفل رؤية التذكرة عن صاحبها. تأكد من صلاحيات البوت.', view=None)
+            return await interaction.edit_original_response(content='❌ ما قدرت أقفل رؤية التذكرة عن صاحبها. تأكد من صلاحيات البوت.', view=None)
 
     @discord.ui.button(label='إلغاء', style=discord.ButtonStyle.secondary, emoji='✖️')
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -280,15 +282,22 @@ class Tickets(commands.Cog):
         category = guild.get_channel(int(category_id)) if category_id else None
         category = category if isinstance(category, discord.CategoryChannel) else None
         support_role = guild.get_role(int(support_role_id)) if support_role_id else None
-        existing = discord.utils.find(lambda c: c.topic == f'flame-ticket-user:{user.id}' and self.is_ticket_channel(c), guild.text_channels)
-        if existing:
-            return await interaction.response.send_message(f'❌ عندك تذكرة مفتوحة بالفعل: {existing.mention}', ephemeral=True)
+        with connection() as conn:
+            existing_row = conn.execute('SELECT channel_id FROM tickets WHERE guild_id=? AND user_id=? AND status="open" LIMIT 1', (guild.id, user.id)).fetchone()
+        if existing_row:
+            existing = guild.get_channel(int(existing_row['channel_id']))
+            if existing:
+                return await interaction.followup.send(f'❌ عندك تذكرة مفتوحة بالفعل: {existing.mention}', ephemeral=True)
+            with connection() as conn:
+                conn.execute('UPDATE tickets SET status="closed", closed_at=CURRENT_TIMESTAMP WHERE channel_id=? AND status="open"', (int(existing_row['channel_id']),))
         try:
-            channel = await guild.create_text_channel(f'ticket-pending-{user.id}', category=category, overwrites=self.ticket_overwrites(guild, user, support_role_id), topic=f'flame-ticket-user:{user.id}', reason='Flame ticket')
+            if not interaction.response.is_done():
+                await interaction.response.defer(ephemeral=True)
+            channel = await guild.create_text_channel(f'ticket-pending-{user.id}', category=category, overwrites=self.ticket_overwrites(guild, user, support_role_id), reason='Flame ticket')
         except discord.Forbidden:
-            return await interaction.response.send_message('❌ البوت لا يملك Manage Channels لإنشاء التذكرة.', ephemeral=True)
+            return await interaction.followup.send('❌ البوت لا يملك Manage Channels لإنشاء التذكرة.', ephemeral=True)
         except discord.HTTPException:
-            return await interaction.response.send_message('❌ تعذر إنشاء التذكرة.', ephemeral=True)
+            return await interaction.followup.send('❌ تعذر إنشاء التذكرة.', ephemeral=True)
         try:
             with connection() as conn:
                 conn.execute('BEGIN IMMEDIATE')
@@ -330,7 +339,7 @@ class Tickets(commands.Cog):
                 existing = guild.get_channel(int(existing_id))
                 if existing:
                     return await interaction.response.send_message(f'❌ عندك تذكرة مفتوحة بالفعل: {existing.mention}', ephemeral=True)
-            return await interaction.response.send_message('❌ تعذر حفظ التذكرة في قاعدة البيانات.', ephemeral=True)
+            return await interaction.followup.send('❌ تعذر حفظ التذكرة في قاعدة البيانات.', ephemeral=True)
         except Exception:
             try:
                 await channel.delete(reason='Ticket database creation failed')
@@ -354,9 +363,9 @@ class Tickets(commands.Cog):
                 await channel.delete(reason='Ticket message could not be sent')
             except discord.HTTPException:
                 pass
-            return await interaction.response.send_message('❌ تم إنشاء القناة لكن تعذر إرسال رسالة التذكرة. تأكد من صلاحيات البوت.', ephemeral=True)
+            return await interaction.followup.send('❌ تم إنشاء القناة لكن تعذر إرسال رسالة التذكرة. تأكد من صلاحيات البوت.', ephemeral=True)
         try:
-            await interaction.response.send_message(f'✅ تم فتح تذكرتك: {channel.mention}', ephemeral=True)
+            await interaction.followup.send(f'✅ تم فتح تذكرتك: {channel.mention}', ephemeral=True)
         except discord.HTTPException:
             # The ticket is already valid; do not delete it just because the interaction expired.
             pass
@@ -400,15 +409,17 @@ class Tickets(commands.Cog):
 
     async def delete_closed_ticket(self, interaction, channel_id):
         guild = interaction.guild
+        if not interaction.response.is_done():
+            await interaction.response.defer(ephemeral=True)
         if guild and get_guild_data(guild.id).get('tickets_enabled', True) is False:
-            return await interaction.response.edit_message(content='❌ نظام التذاكر متوقف حاليًا.', view=None)
+            return await interaction.edit_original_response(content='❌ نظام التذاكر متوقف حاليًا.', view=None)
         channel = guild.get_channel(int(channel_id)) if guild else None
         if not guild or not channel:
-            return await interaction.response.edit_message(content='❌ لم تعد قناة التذكرة موجودة.', view=None)
+            return await interaction.edit_original_response(content='❌ لم تعد قناة التذكرة موجودة.', view=None)
         with connection() as conn:
             row = conn.execute('SELECT * FROM tickets WHERE channel_id=? AND status="closed"', (channel.id,)).fetchone()
         if not row:
-            return await interaction.response.edit_message(content='❌ هذه التذكرة ليست مغلقة.', view=None)
+            return await interaction.edit_original_response(content='❌ هذه التذكرة ليست مغلقة.', view=None)
         with connection() as conn:
             existing = conn.execute(
                 'SELECT channel_id FROM tickets WHERE guild_id=? AND user_id=? AND status="open" AND channel_id<>? LIMIT 1',
@@ -417,14 +428,14 @@ class Tickets(commands.Cog):
         if existing:
             existing_channel = guild.get_channel(int(existing['channel_id']))
             target = existing_channel.mention if existing_channel else 'تذكرة مفتوحة أخرى'
-            return await interaction.response.edit_message(
+            return await interaction.edit_original_response(
                 content=f'❌ لا يمكن إعادة فتح هذه التذكرة لأن صاحبها لديه {target}. أغلق التذكرة المفتوحة أولًا.',
                 view=None,
             )
         if interaction.user.id != row['user_id'] and not interaction.user.guild_permissions.manage_channels:
             return await interaction.response.send_message('❌ ما عندك صلاحية حذف هذه التذكرة.', ephemeral=True)
         try:
-            await interaction.response.edit_message(content='🗑️ جاري حذف التذكرة...', view=None)
+            await interaction.edit_original_response(content='🗑️ جاري حذف التذكرة...', view=None)
             await channel.delete(reason=f'Ticket deleted by {interaction.user}')
         except (discord.Forbidden, discord.HTTPException):
             return await interaction.followup.send('❌ ما قدرت أحذف قناة التذكرة. تأكد من صلاحية Manage Channels.', ephemeral=True)
@@ -438,15 +449,17 @@ class Tickets(commands.Cog):
 
     async def reopen_ticket(self, interaction, channel_id):
         guild = interaction.guild
+        if not interaction.response.is_done():
+            await interaction.response.defer(ephemeral=True)
         if guild and get_guild_data(guild.id).get('tickets_enabled', True) is False:
-            return await interaction.response.edit_message(content='❌ نظام التذاكر متوقف حاليًا.', view=None)
+            return await interaction.edit_original_response(content='❌ نظام التذاكر متوقف حاليًا.', view=None)
         channel = guild.get_channel(int(channel_id)) if guild else None
         if not guild or not channel:
-            return await interaction.response.edit_message(content='❌ لم تعد قناة التذكرة موجودة.', view=None)
+            return await interaction.edit_original_response(content='❌ لم تعد قناة التذكرة موجودة.', view=None)
         with connection() as conn:
             row = conn.execute('SELECT * FROM tickets WHERE channel_id=? AND status="closed"', (channel.id,)).fetchone()
         if not row:
-            return await interaction.response.edit_message(content='❌ هذه التذكرة ليست مغلقة.', view=None)
+            return await interaction.edit_original_response(content='❌ هذه التذكرة ليست مغلقة.', view=None)
         if interaction.user.id != row['user_id'] and not interaction.user.guild_permissions.manage_channels:
             return await interaction.response.send_message('❌ ما عندك صلاحية فتح هذه التذكرة.', ephemeral=True)
         opener = guild.get_member(int(row['user_id']))
@@ -456,7 +469,7 @@ class Tickets(commands.Cog):
             except (discord.NotFound, discord.HTTPException):
                 opener = None
         if not opener:
-            return await interaction.response.edit_message(content='❌ صاحب التذكرة لم يعد موجودًا في السيرفر، لذلك لا يمكن فتحها له.', view=None)
+            return await interaction.edit_original_response(content='❌ صاحب التذكرة لم يعد موجودًا في السيرفر، لذلك لا يمكن فتحها له.', view=None)
         try:
             await channel.set_permissions(opener, view_channel=True, send_messages=True, read_message_history=True)
             with connection() as conn:
@@ -466,9 +479,9 @@ class Tickets(commands.Cog):
                 await self.write_ticket_log(guild, f'🔓 تم إعادة فتح التذكرة بواسطة {interaction.user.mention}.')
             except Exception:
                 pass
-            await interaction.response.edit_message(content='🔓 تم فتح التذكرة. صاحب التذكرة يستطيع رؤيتها الآن.', view=None)
+            await interaction.edit_original_response(content='🔓 تم فتح التذكرة. صاحب التذكرة يستطيع رؤيتها الآن.', view=None)
         except (discord.Forbidden, discord.HTTPException):
-            return await interaction.response.edit_message(content='❌ ما قدرت أرجع صلاحية صاحب التذكرة. تأكد من صلاحيات البوت.', view=None)
+            return await interaction.edit_original_response(content='❌ ما قدرت أرجع صلاحية صاحب التذكرة. تأكد من صلاحيات البوت.', view=None)
     async def send_panel(self, ctx):
         settings = get_guild_data(ctx.guild.id)
         if settings.get('tickets_enabled', True) is False:
