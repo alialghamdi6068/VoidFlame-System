@@ -73,24 +73,24 @@ class Moderation(commands.Cog):
     @commands.bot_has_permissions(ban_members=True)
     async def ban_prefix(self, ctx, member: discord.Member, *, reason='بدون سبب'):
         if member == ctx.guild.owner:
-            return await ctx.reply('❌ ما تقدر تحظر مالك السيرفر.')
+            return await ctx.reply('❌ **تعذر تنفيذ الحظر**\n> لا يمكن حظر مالك السيرفر.')
         if member == ctx.guild.me:
-            return await ctx.reply('❌ ما تقدر تحظر البوت نفسه.')
+            return await ctx.reply('❌ **تعذر تنفيذ الحظر**\n> لا يمكن للبوت حظر نفسه.')
         if member.top_role >= ctx.guild.me.top_role and member != ctx.guild.owner:
-            return await ctx.reply('❌ رتبة العضو أعلى من رتبة البوت أو مساوية لها.')
+            return await ctx.reply('❌ **تعذر تنفيذ الإجراء**\n> رتبة العضو أعلى من رتبة البوت أو مساوية لها.')
         await self._ban(ctx.guild, member, reason_text(reason), ctx.author)
-        await ctx.reply(f'🔨 تم حظر {member.mention}.')
+        await ctx.reply(f'🔨 **تم حظر العضو بنجاح**\n> العضو: {member.mention}')
 
     @app_commands.command(name='ban', description='Ban a member')
     @app_commands.guild_only()
     @app_commands.checks.has_permissions(ban_members=True)
     async def ban_slash(self, interaction: discord.Interaction, member: discord.Member, reason: str = 'بدون سبب'):
         if member == interaction.guild.owner:
-            return await interaction.response.send_message('❌ ما تقدر تحظر مالك السيرفر.')
+            return await interaction.response.send_message('❌ **تعذر تنفيذ الحظر**\n> لا يمكن حظر مالك السيرفر.')
         if member.top_role >= interaction.guild.me.top_role and member != interaction.guild.owner:
-            return await interaction.response.send_message('❌ رتبة العضو أعلى من رتبة البوت أو مساوية لها.')
+            return await interaction.response.send_message('❌ **تعذر تنفيذ الإجراء**\n> رتبة العضو أعلى من رتبة البوت أو مساوية لها.')
         await self._ban(interaction.guild, member, reason_text(reason), interaction.user)
-        await interaction.response.send_message(f'🔨 تم حظر {member.mention}.')
+        await interaction.response.send_message(f'🔨 **تم حظر العضو بنجاح**\n> العضو: {member.mention}')
 
     @commands.command(name='طرد')
     @commands.guild_only()
@@ -98,22 +98,22 @@ class Moderation(commands.Cog):
     @commands.bot_has_permissions(kick_members=True)
     async def kick_prefix(self, ctx, member: discord.Member, *, reason='بدون سبب'):
         if member == ctx.guild.owner:
-            return await ctx.reply('❌ ما تقدر تطرد مالك السيرفر.')
+            return await ctx.reply('❌ **تعذر تنفيذ الطرد**\n> لا يمكن طرد مالك السيرفر.')
         if member.top_role >= ctx.guild.me.top_role and member != ctx.guild.owner:
-            return await ctx.reply('❌ رتبة العضو أعلى من رتبة البوت أو مساوية لها.')
+            return await ctx.reply('❌ **تعذر تنفيذ الإجراء**\n> رتبة العضو أعلى من رتبة البوت أو مساوية لها.')
         await self._kick(ctx.guild, member, reason_text(reason), ctx.author)
-        await ctx.reply(f'👢 تم طرد {member.mention}.')
+        await ctx.reply(f'👢 **تم طرد العضو بنجاح**\n> العضو: {member.mention}')
 
     @app_commands.command(name='kick', description='Kick a member')
     @app_commands.guild_only()
     @app_commands.checks.has_permissions(kick_members=True)
     async def kick_slash(self, interaction: discord.Interaction, member: discord.Member, reason: str = 'بدون سبب'):
         if member == interaction.guild.owner:
-            return await interaction.response.send_message('❌ ما تقدر تطرد مالك السيرفر.')
+            return await interaction.response.send_message('❌ **تعذر تنفيذ الطرد**\n> لا يمكن طرد مالك السيرفر.')
         if member.top_role >= interaction.guild.me.top_role and member != interaction.guild.owner:
-            return await interaction.response.send_message('❌ رتبة العضو أعلى من رتبة البوت أو مساوية لها.')
+            return await interaction.response.send_message('❌ **تعذر تنفيذ الإجراء**\n> رتبة العضو أعلى من رتبة البوت أو مساوية لها.')
         await self._kick(interaction.guild, member, reason_text(reason), interaction.user)
-        await interaction.response.send_message(f'👢 تم طرد {member.mention}.')
+        await interaction.response.send_message(f'👢 **تم طرد العضو بنجاح**\n> العضو: {member.mention}')
 
     @commands.command(name='تايم')
     @commands.guild_only()
@@ -121,26 +121,26 @@ class Moderation(commands.Cog):
     @commands.bot_has_permissions(moderate_members=True)
     async def timeout_prefix(self, ctx, member: discord.Member, minutes: int, *, reason='بدون سبب'):
         if not 1 <= minutes <= 40320:
-            return await ctx.reply('❌ المدة يجب أن تكون بين دقيقة و28 يوم.')
+            return await ctx.reply('❌ **مدة غير صالحة**\n> اختر مدة بين **دقيقة واحدة** و **28 يومًا**.')
         if member == ctx.guild.owner:
-            return await ctx.reply('❌ ما تقدر تعطي تايم لمالك السيرفر.')
+            return await ctx.reply('❌ **تعذر تنفيذ الـ Timeout**\n> لا يمكن تطبيقه على مالك السيرفر.')
         if member.top_role >= ctx.guild.me.top_role and member != ctx.guild.owner:
-            return await ctx.reply('❌ رتبة العضو أعلى من رتبة البوت أو مساوية لها.')
+            return await ctx.reply('❌ **تعذر تنفيذ الإجراء**\n> رتبة العضو أعلى من رتبة البوت أو مساوية لها.')
         await self._timeout(ctx.guild, member, minutes, reason_text(reason), ctx.author)
-        await ctx.reply(f'⏳ تم إعطاء {member.mention} تايم لمدة **{minutes}** دقيقة.')
+        await ctx.reply(f'⏳ **تم تطبيق الـ Timeout**\n> العضو: {member.mention}\n> المدة: **{minutes} دقيقة**')
 
     @app_commands.command(name='timeout', description='Timeout a member')
     @app_commands.guild_only()
     @app_commands.checks.has_permissions(moderate_members=True)
     async def timeout_slash(self, interaction: discord.Interaction, member: discord.Member, minutes: int, reason: str = 'بدون سبب'):
         if not 1 <= minutes <= 40320:
-            return await interaction.response.send_message('❌ المدة يجب أن تكون بين دقيقة و28 يوم.')
+            return await interaction.response.send_message('❌ **مدة غير صالحة**\n> اختر مدة بين **دقيقة واحدة** و **28 يومًا**.')
         if member == interaction.guild.owner:
-            return await interaction.response.send_message('❌ ما تقدر تعطي تايم لمالك السيرفر.')
+            return await interaction.response.send_message('❌ **تعذر تنفيذ الـ Timeout**\n> لا يمكن تطبيقه على مالك السيرفر.')
         if member.top_role >= interaction.guild.me.top_role and member != interaction.guild.owner:
-            return await interaction.response.send_message('❌ رتبة العضو أعلى من رتبة البوت أو مساوية لها.')
+            return await interaction.response.send_message('❌ **تعذر تنفيذ الإجراء**\n> رتبة العضو أعلى من رتبة البوت أو مساوية لها.')
         await self._timeout(interaction.guild, member, minutes, reason_text(reason), interaction.user)
-        await interaction.response.send_message(f'⏳ تم إعطاء {member.mention} تايم لمدة **{minutes}** دقيقة.')
+        await interaction.response.send_message(f'⏳ **تم تطبيق الـ Timeout**\n> العضو: {member.mention}\n> المدة: **{minutes} دقيقة**')
 
     @commands.command(name='فك_تايم')
     @commands.guild_only()
@@ -148,26 +148,26 @@ class Moderation(commands.Cog):
     @commands.bot_has_permissions(moderate_members=True)
     async def untimeout_prefix(self, ctx, member: discord.Member):
         if member == ctx.guild.owner or member == ctx.guild.me or member.top_role >= ctx.guild.me.top_role:
-            return await ctx.reply('❌ ما تقدر تعدل تايم عضو رتبته أعلى من البوت أو مساوية لها.')
+            return await ctx.reply('❌ **تعذر تعديل الـ Timeout**\n> رتبة العضو أعلى من رتبة البوت أو مساوية لها.')
         await member.timeout(None, reason=f'Un-timeout by {ctx.author}')
         log_activity(ctx.guild.id, 'untimeout', str(member), member.id)
         logs = self.bot.get_cog('Logs')
         if logs:
             await logs.send_log(ctx.guild, 'Untimeout', f'Member: {member.mention}', actor=ctx.author, color=discord.Color.green())
-        await ctx.reply(f'✅ تم فك التايم عن {member.mention}.')
+        await ctx.reply(f'✅ **تم إزالة الـ Timeout**\n> العضو: {member.mention}')
 
     @app_commands.command(name='untimeout', description='Remove a member timeout')
     @app_commands.guild_only()
     @app_commands.checks.has_permissions(moderate_members=True)
     async def untimeout_slash(self, interaction: discord.Interaction, member: discord.Member):
         if member == interaction.guild.owner or member == interaction.guild.me or member.top_role >= interaction.guild.me.top_role:
-            return await interaction.response.send_message('❌ ما تقدر تعدل تايم عضو رتبته أعلى من البوت أو مساوية لها.', ephemeral=True)
+            return await interaction.response.send_message('❌ **تعذر تعديل الـ Timeout**\n> رتبة العضو أعلى من رتبة البوت أو مساوية لها.', ephemeral=True)
         await member.timeout(None, reason=f'Un-timeout by {interaction.user}')
         log_activity(interaction.guild.id, 'untimeout', str(member), member.id)
         logs = self.bot.get_cog('Logs')
         if logs:
             await logs.send_log(interaction.guild, 'Untimeout', f'Member: {member.mention}', actor=interaction.user, color=discord.Color.green())
-        await interaction.response.send_message(f'✅ تم فك التايم عن {member.mention}.')
+        await interaction.response.send_message(f'✅ **تم إزالة الـ Timeout**\n> العضو: {member.mention}')
 
     @commands.command(name='اعطاء رتبة')
     @commands.guild_only()
@@ -178,15 +178,15 @@ class Moderation(commands.Cog):
             changed = await self._change_role(ctx.guild, member, role, True, ctx.author)
         except ValueError as exc:
             messages = {
-                'invalid_role': '❌ ما تقدر تعطي رتبة @everyone أو رتبة مرتبطة ببوت/تكامل.',
-                'role_hierarchy': '❌ رتبة البوت لازم تكون أعلى من الرتبة اللي تبي تعطيها.',
-                'target_owner': '❌ ما تقدر تعدل رتب مالك السيرفر.',
-                'member_hierarchy': '❌ رتبة العضو أعلى من رتبة البوت أو مساوية لها.',
+                'invalid_role': '❌ **رتبة غير قابلة للإدارة**\n> لا يمكن إعطاء رتبة @everyone أو رتبة مرتبطة ببوت/تكامل.',
+                'role_hierarchy': '❌ **ترتيب الرتب غير كافٍ**\n> يجب أن تكون رتبة البوت أعلى من الرتبة المطلوبة.',
+                'target_owner': '❌ **تعذر تعديل الرتبة**\n> لا يمكن تعديل رتب مالك السيرفر.',
+                'member_hierarchy': '❌ **تعذر تنفيذ الإجراء**\n> رتبة العضو أعلى من رتبة البوت أو مساوية لها.',
             }
-            return await ctx.reply(messages.get(str(exc), '❌ ما قدرت أعطي الرتبة.'))
+            return await ctx.reply(messages.get(str(exc), '❌ **تعذر إعطاء الرتبة**\n> تأكد من صلاحيات البوت وترتيب الرتب.'))
         if not changed:
-            return await ctx.reply(f'ℹ️ {member.mention} عنده رتبة {role.mention} بالفعل.')
-        await ctx.reply(f'✅ تم إعطاء {role.mention} إلى {member.mention}.')
+            return await ctx.reply(f'ℹ️ **لا يوجد تغيير**\n> {member.mention} يملك {role.mention} بالفعل.')
+        await ctx.reply(f'✅ **تم إعطاء الرتبة**\n> العضو: {member.mention}\n> الرتبة: {role.mention}')
 
     @app_commands.command(name='give-role', description='Give a role to a member')
     @app_commands.guild_only()
@@ -196,15 +196,15 @@ class Moderation(commands.Cog):
             changed = await self._change_role(interaction.guild, member, role, True, interaction.user)
         except ValueError as exc:
             messages = {
-                'invalid_role': '❌ ما تقدر تعطي رتبة @everyone أو رتبة مرتبطة ببوت/تكامل.',
-                'role_hierarchy': '❌ رتبة البوت لازم تكون أعلى من الرتبة اللي تبي تعطيها.',
-                'target_owner': '❌ ما تقدر تعدل رتب مالك السيرفر.',
-                'member_hierarchy': '❌ رتبة العضو أعلى من رتبة البوت أو مساوية لها.',
+                'invalid_role': '❌ **رتبة غير قابلة للإدارة**\n> لا يمكن إعطاء رتبة @everyone أو رتبة مرتبطة ببوت/تكامل.',
+                'role_hierarchy': '❌ **ترتيب الرتب غير كافٍ**\n> يجب أن تكون رتبة البوت أعلى من الرتبة المطلوبة.',
+                'target_owner': '❌ **تعذر تعديل الرتبة**\n> لا يمكن تعديل رتب مالك السيرفر.',
+                'member_hierarchy': '❌ **تعذر تنفيذ الإجراء**\n> رتبة العضو أعلى من رتبة البوت أو مساوية لها.',
             }
-            return await interaction.response.send_message(messages.get(str(exc), '❌ ما قدرت أعطي الرتبة.'))
+            return await interaction.response.send_message(messages.get(str(exc), '❌ **تعذر إعطاء الرتبة**\n> تأكد من صلاحيات البوت وترتيب الرتب.'))
         if not changed:
-            return await interaction.response.send_message(f'ℹ️ {member.mention} عنده رتبة {role.mention} بالفعل.')
-        await interaction.response.send_message(f'✅ تم إعطاء {role.mention} إلى {member.mention}.')
+            return await interaction.response.send_message(f'ℹ️ **لا يوجد تغيير**\n> {member.mention} يملك {role.mention} بالفعل.')
+        await interaction.response.send_message(f'✅ **تم إعطاء الرتبة**\n> العضو: {member.mention}\n> الرتبة: {role.mention}')
 
     @commands.command(name='سحب رتبة')
     @commands.guild_only()
@@ -215,15 +215,15 @@ class Moderation(commands.Cog):
             changed = await self._change_role(ctx.guild, member, role, False, ctx.author)
         except ValueError as exc:
             messages = {
-                'invalid_role': '❌ ما تقدر تسحب @everyone أو رتبة مرتبطة ببوت/تكامل.',
+                'invalid_role': '❌ **رتبة غير قابلة للإدارة**\n> لا يمكن سحب رتبة @everyone أو رتبة مرتبطة ببوت/تكامل.',
                 'role_hierarchy': '❌ رتبة البوت لازم تكون أعلى من الرتبة اللي تبي تسحبها.',
-                'target_owner': '❌ ما تقدر تعدل رتب مالك السيرفر.',
-                'member_hierarchy': '❌ رتبة العضو أعلى من رتبة البوت أو مساوية لها.',
+                'target_owner': '❌ **تعذر تعديل الرتبة**\n> لا يمكن تعديل رتب مالك السيرفر.',
+                'member_hierarchy': '❌ **تعذر تنفيذ الإجراء**\n> رتبة العضو أعلى من رتبة البوت أو مساوية لها.',
             }
-            return await ctx.reply(messages.get(str(exc), '❌ ما قدرت أسحب الرتبة.'))
+            return await ctx.reply(messages.get(str(exc), '❌ **تعذر سحب الرتبة**\n> تأكد من صلاحيات البوت وترتيب الرتب.'))
         if not changed:
-            return await ctx.reply(f'ℹ️ {member.mention} ما عنده رتبة {role.mention}.')
-        await ctx.reply(f'✅ تم سحب {role.mention} من {member.mention}.')
+            return await ctx.reply(f'ℹ️ **لا يوجد تغيير**\n> {member.mention} لا يملك {role.mention}.')
+        await ctx.reply(f'✅ **تم سحب الرتبة**\n> العضو: {member.mention}\n> الرتبة: {role.mention}')
 
     @app_commands.command(name='remove-role', description='Remove a role from a member')
     @app_commands.guild_only()
@@ -233,15 +233,15 @@ class Moderation(commands.Cog):
             changed = await self._change_role(interaction.guild, member, role, False, interaction.user)
         except ValueError as exc:
             messages = {
-                'invalid_role': '❌ ما تقدر تسحب @everyone أو رتبة مرتبطة ببوت/تكامل.',
+                'invalid_role': '❌ **رتبة غير قابلة للإدارة**\n> لا يمكن سحب رتبة @everyone أو رتبة مرتبطة ببوت/تكامل.',
                 'role_hierarchy': '❌ رتبة البوت لازم تكون أعلى من الرتبة اللي تبي تسحبها.',
-                'target_owner': '❌ ما تقدر تعدل رتب مالك السيرفر.',
-                'member_hierarchy': '❌ رتبة العضو أعلى من رتبة البوت أو مساوية لها.',
+                'target_owner': '❌ **تعذر تعديل الرتبة**\n> لا يمكن تعديل رتب مالك السيرفر.',
+                'member_hierarchy': '❌ **تعذر تنفيذ الإجراء**\n> رتبة العضو أعلى من رتبة البوت أو مساوية لها.',
             }
-            return await interaction.response.send_message(messages.get(str(exc), '❌ ما قدرت أسحب الرتبة.'))
+            return await interaction.response.send_message(messages.get(str(exc), '❌ **تعذر سحب الرتبة**\n> تأكد من صلاحيات البوت وترتيب الرتب.'))
         if not changed:
-            return await interaction.response.send_message(f'ℹ️ {member.mention} ما عنده رتبة {role.mention}.')
-        await interaction.response.send_message(f'✅ تم سحب {role.mention} من {member.mention}.')
+            return await interaction.response.send_message(f'ℹ️ **لا يوجد تغيير**\n> {member.mention} لا يملك {role.mention}.')
+        await interaction.response.send_message(f'✅ **تم سحب الرتبة**\n> العضو: {member.mention}\n> الرتبة: {role.mention}')
 
     @commands.command(name='تحذير')
     @commands.guild_only()
@@ -250,9 +250,9 @@ class Moderation(commands.Cog):
         try:
             count, dm_sent, action = await issue_warning(ctx.guild, member, ctx.author, reason_text(reason), self.bot)
         except ValueError as exc:
-            messages = {'target_owner': '❌ ما تقدر تحذر مالك السيرفر.', 'target_bot': '❌ ما تقدر تحذر البوت نفسه.', 'member_hierarchy': '❌ رتبة العضو أعلى من رتبة البوت أو مساوية لها.', 'target_self': '❌ ما تقدر تحذر نفسك.'}
-            return await ctx.reply(messages.get(str(exc), '❌ تعذر إصدار التحذير.'))
-        await ctx.reply(f'⚠️ تم تحذير {member.mention}. مجموع التحذيرات: **{count}**. الإجراء: **{action}**. 📩 {"تم إرسال الخاص" if dm_sent else "الخاص غير متاح"}')
+            messages = {'target_owner': '❌ **تعذر إصدار التحذير**\n> لا يمكن تحذير مالك السيرفر.', 'target_bot': '❌ **تعذر إصدار التحذير**\n> لا يمكن تحذير البوت نفسه.', 'member_hierarchy': '❌ **تعذر تنفيذ الإجراء**\n> رتبة العضو أعلى من رتبة البوت أو مساوية لها.', 'target_self': '❌ **تعذر إصدار التحذير**\n> لا يمكنك تحذير نفسك.'}
+            return await ctx.reply(messages.get(str(exc), '❌ **تعذر إصدار التحذير**\n> تحقق من صلاحيات البوت وترتيب الرتب.'))
+        await ctx.reply(f'⚠️ **تم إصدار التحذير**\n> العضو: {member.mention}\n> إجمالي التحذيرات: **{count}**\n> الإجراء: **{action}**\n> الرسالة الخاصة: **{"تم الإرسال" if dm_sent else "غير متاحة"}**')
 
     @app_commands.command(name='warn', description='Warn a member')
     @app_commands.guild_only()
@@ -261,9 +261,9 @@ class Moderation(commands.Cog):
         try:
             count, dm_sent, action = await issue_warning(interaction.guild, member, interaction.user, reason_text(reason), self.bot)
         except ValueError as exc:
-            messages = {'target_owner': '❌ ما تقدر تحذر مالك السيرفر.', 'target_bot': '❌ ما تقدر تحذر البوت نفسه.', 'member_hierarchy': '❌ رتبة العضو أعلى من رتبة البوت أو مساوية لها.', 'target_self': '❌ ما تقدر تحذر نفسك.'}
-            return await interaction.response.send_message(messages.get(str(exc), '❌ تعذر إصدار التحذير.'), ephemeral=True)
-        await interaction.response.send_message(f'⚠️ تم تحذير {member.mention}. مجموع التحذيرات: **{count}**. الإجراء: **{action}**. 📩 {"تم إرسال الخاص" if dm_sent else "الخاص غير متاح"}')
+            messages = {'target_owner': '❌ **تعذر إصدار التحذير**\n> لا يمكن تحذير مالك السيرفر.', 'target_bot': '❌ **تعذر إصدار التحذير**\n> لا يمكن تحذير البوت نفسه.', 'member_hierarchy': '❌ **تعذر تنفيذ الإجراء**\n> رتبة العضو أعلى من رتبة البوت أو مساوية لها.', 'target_self': '❌ **تعذر إصدار التحذير**\n> لا يمكنك تحذير نفسك.'}
+            return await interaction.response.send_message(messages.get(str(exc), '❌ **تعذر إصدار التحذير**\n> تحقق من صلاحيات البوت وترتيب الرتب.'), ephemeral=True)
+        await interaction.response.send_message(f'⚠️ **تم إصدار التحذير**\n> العضو: {member.mention}\n> إجمالي التحذيرات: **{count}**\n> الإجراء: **{action}**\n> الرسالة الخاصة: **{"تم الإرسال" if dm_sent else "غير متاحة"}**')
 
     @commands.command(name='تحذيرات')
     @commands.guild_only()
@@ -272,7 +272,7 @@ class Moderation(commands.Cog):
         with connection() as conn:
             rows = conn.execute('SELECT reason, moderator_id, created_at FROM warnings WHERE guild_id=? AND user_id=? ORDER BY id DESC LIMIT 10', (ctx.guild.id, member.id)).fetchall()
         if not rows:
-            return await ctx.reply(f'✅ {member.mention} ما عليه تحذيرات.')
+            return await ctx.reply(f'ℹ️ **سجل التحذيرات**\n> {member.mention} لا يملك أي تحذيرات.')
         lines = [f'**{i}.** {row["reason"]} — <@{row["moderator_id"]}> ({row["created_at"]})' for i, row in enumerate(rows, 1)]
         await ctx.reply(f'⚠️ تحذيرات {member.mention}:\n' + '\n'.join(lines))
 
@@ -283,7 +283,7 @@ class Moderation(commands.Cog):
         with connection() as conn:
             conn.execute('DELETE FROM warnings WHERE guild_id=? AND user_id=?', (ctx.guild.id, member.id))
         log_activity(ctx.guild.id, 'clear_warnings', str(member), ctx.author.id)
-        await ctx.reply(f'🧹 تم مسح تحذيرات {member.mention}.')
+        await ctx.reply(f'🧹 **تم مسح التحذيرات**\n> العضو: {member.mention}')
 
     @commands.command(name='حذف_تحذير')
     @commands.guild_only()
