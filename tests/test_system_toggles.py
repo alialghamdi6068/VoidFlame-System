@@ -55,6 +55,10 @@ class SystemToggleTests(unittest.TestCase):
         self.assertEqual(source.count("log_activity(guild.id, 'ticket_reopen'"), 1)
         self.assertEqual(source.count("تم إعادة فتح التذكرة بواسطة"), 1)
 
+    def test_ticket_close_action_allows_staff_to_reopen_or_delete(self):
+        source = (ROOT / "cogs" / "tickets.py").read_text(encoding="utf-8")
+        self.assertIn("if interaction.user.id != self.user_id and not interaction.user.guild_permissions.manage_channels:", source)
+
     def test_dashboard_settings_are_audited(self):
         source = (ROOT / "web" / "api.py").read_text(encoding="utf-8")
         self.assertIn("from database import get_guild_data, update_guild_data, log_activity", source)
