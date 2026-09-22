@@ -345,7 +345,7 @@ class Tickets(commands.Cog):
                 await channel.delete(reason='Ticket database creation failed')
             except discord.HTTPException:
                 pass
-            return await interaction.response.send_message('❌ تعذر حفظ التذكرة في قاعدة البيانات.', ephemeral=True)
+            return await interaction.followup.send('❌ تعذر حفظ التذكرة في قاعدة البيانات.', ephemeral=True)
         log_activity(guild.id, 'ticket_open', str(channel), user.id)
         await self.write_ticket_log(guild, f'🎫 تم فتح `{channel.name}` بواسطة {user.mention}.')
         title = str(button_config.get('title') or settings.get('ticket_embed_title') or f'🎫 تذكرة دعم #{ticket_id:04d}')[:256]
