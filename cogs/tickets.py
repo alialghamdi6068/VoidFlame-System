@@ -116,6 +116,8 @@ class TicketCloseConfirmView(discord.ui.View):
             row = conn.execute('SELECT * FROM tickets WHERE channel_id=? AND status="open"', (self.channel_id,)).fetchone()
         if not row:
             return await interaction.edit_original_response(content='❌ هذه التذكرة مغلقة أو غير موجودة.', view=None)
+        if not self.cog.can_manage_ticket(interaction.user, interaction.guild, allow_owner=True, owner_id=row['user_id']):
+            return await interaction.edit_original_response(content='❌ ما عندك صلاحية إغلاق هذه التذكرة.', view=None)
         opener = interaction.guild.get_member(int(row['user_id']))
         if not opener:
             try:
@@ -437,7 +439,10 @@ class Tickets(commands.Cog):
                 pass
             return await interaction.followup.send('❌ تعذر حفظ التذكرة في قاعدة البيانات.', ephemeral=True)
         log_activity(guild.id, 'ticket_open', str(channel), user.id)
-        await self.write_ticket_log(guild, f'🎫 تم فتح `{channel.name}` بواسطة {user.mention}.')
+        try:
+            await self.write_ticket_log(guild, f'🎫 تم فتح `{channel.name}` بواسطة {user.mention}.')
+        except Exception:
+            pass
         title = str(button_config.get('title') or settings.get('ticket_embed_title') or f'🎫 تذكرة دعم #{ticket_id:04d}')[:256]
         description = str(button_config.get('description') or settings.get('ticket_embed_description') or 'أهلاً بك!\n\nاكتب تفاصيل طلبك هنا وسيقوم فريق الدعم بمساعدتك.')[:4000]
         title = self.replace_variables(title, guild, user, ticket_id, category, support_role)[:256]
@@ -485,10 +490,6 @@ class Tickets(commands.Cog):
 
         if not guild or not channel:
             return
-        if get_guild_data(guild.id).get('tickets_enabled', True) is False:
-            if isinstance(source, discord.Interaction):
-                return await reply('❌ نظام التذاكر متوقف حاليًا.')
-            return await reply('❌ نظام التذاكر متوقف حاليًا.')
         with connection() as conn:
             row = conn.execute('SELECT * FROM tickets WHERE channel_id=? AND status="open"', (channel.id,)).fetchone()
         if not row:
@@ -501,8 +502,6 @@ class Tickets(commands.Cog):
         guild = interaction.guild
         if not interaction.response.is_done():
             await interaction.response.defer(ephemeral=True)
-        if guild and get_guild_data(guild.id).get('tickets_enabled', True) is False:
-            return await interaction.edit_original_response(content='❌ نظام التذاكر متوقف حاليًا.', view=None)
         channel = guild.get_channel(int(channel_id)) if guild else None
         if not guild or not channel:
             return await interaction.edit_original_response(content='❌ لم تعد قناة التذكرة موجودة.', view=None)
@@ -510,8 +509,8 @@ class Tickets(commands.Cog):
             row = conn.execute('SELECT * FROM tickets WHERE channel_id=? AND status="closed"', (channel.id,)).fetchone()
         if not row:
             return await interaction.edit_original_response(content='❌ هذه التذكرة ليست مغلقة.', view=None)
-        if not self.can_manage_ticket(interaction.user, guild, allow_owner=False, owner_id=row['user_id']):
-            return await interaction.edit_original_response(content='❌ ما عندك صلاحية حذف هذه التذكرة.', view=None)
+        if not (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.manage_channels):
+            return await interaction.edit_original_response(content='❌ حذف التذكرة للإدارة فقط.', view=None)
         try:
             await interaction.edit_original_response(content='🗑️ جاري حذف التذكرة...', view=None)
             await channel.delete(reason=f'Ticket deleted by {interaction.user}')
@@ -531,8 +530,6 @@ class Tickets(commands.Cog):
         guild = interaction.guild
         if not interaction.response.is_done():
             await interaction.response.defer(ephemeral=True)
-        if guild and get_guild_data(guild.id).get('tickets_enabled', True) is False:
-            return await interaction.edit_original_response(content='❌ نظام التذاكر متوقف حاليًا.', view=None)
         channel = guild.get_channel(int(channel_id)) if guild else None
         if not guild or not channel:
             return await interaction.edit_original_response(content='❌ لم تعد قناة التذكرة موجودة.', view=None)
@@ -648,7 +645,7 @@ class Tickets(commands.Cog):
 
     @commands.command(name='استلام')
     @commands.guild_only()
-        async def claim_prefix(self, ctx):
+    async def claim_prefix(self, ctx):
         if not self.can_manage_ticket(ctx.author, ctx.guild):
             return await ctx.reply('❌ هذا الأمر لفريق الدعم أو الإدارة فقط.')
         if get_guild_data(ctx.guild.id).get('tickets_enabled', True) is False:
@@ -689,7 +686,7 @@ class Tickets(commands.Cog):
 
     @commands.command(name='اضافة')
     @commands.guild_only()
-        async def add_prefix(self, ctx, member: discord.Member):
+    async def add_prefix(self, ctx, member: discord.Member):
         if not self.can_manage_ticket(ctx.author, ctx.guild):
             return await ctx.reply('❌ هذا الأمر لفريق الدعم أو الإدارة فقط.')
         if get_guild_data(ctx.guild.id).get('tickets_enabled', True) is False:
@@ -708,7 +705,7 @@ class Tickets(commands.Cog):
 
     @commands.command(name='ازالة')
     @commands.guild_only()
-        async def remove_prefix(self, ctx, member: discord.Member):
+    async def remove_prefix(self, ctx, member: discord.Member):
         if not self.can_manage_ticket(ctx.author, ctx.guild):
             return await ctx.reply('❌ هذا الأمر لفريق الدعم أو الإدارة فقط.')
         if get_guild_data(ctx.guild.id).get('tickets_enabled', True) is False:
