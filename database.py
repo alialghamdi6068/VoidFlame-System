@@ -53,7 +53,8 @@ CREATE TABLE IF NOT EXISTS tickets (
     status TEXT NOT NULL DEFAULT 'open',
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     closed_at TEXT,
-    ticket_number INTEGER
+    ticket_number INTEGER,
+    claimed_by INTEGER
 );
 CREATE TABLE IF NOT EXISTS applications (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -122,6 +123,8 @@ def init_db():
         columns = {row[1] for row in conn.execute("PRAGMA table_info(tickets)").fetchall()}
         if "ticket_number" not in columns:
             conn.execute("ALTER TABLE tickets ADD COLUMN ticket_number INTEGER")
+        if "claimed_by" not in columns:
+            conn.execute("ALTER TABLE tickets ADD COLUMN claimed_by INTEGER")
 
         guild_ids = [
             row[0] for row in conn.execute(
