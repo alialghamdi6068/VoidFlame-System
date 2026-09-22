@@ -48,4 +48,4 @@ class ModerationEngine:
         score=min(100,score)
         category="high_risk" if score>=70 else "moderate" if score>=40 else "low_risk" if score else "clean"
         confidence=min(.99,.50+score/200+(0.08 if len(matched)>=2 else 0))
-        return Result(score,confidence,category,matched[:8],"Patterns: "+", ".join(matched[:8]) if matched else "No risky pattern detected.")
+        return Result(score,confidence,category,matched[:8],"أنماط مرصودة: "+", ".join(matched[:8]) if matched else "لم يتم رصد نمط مخالف.")
