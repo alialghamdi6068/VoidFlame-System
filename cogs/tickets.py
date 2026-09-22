@@ -296,7 +296,6 @@ class Tickets(commands.Cog):
             channel = await guild.create_text_channel(
                 f'ticket-pending-{user.id}',
                 category=category,
-                topic=self.replace_variables(str(button_config.get('topic') or settings.get('ticket_topic') or ''), guild, user, 0, category, support_role)[:1024] or None,
                 overwrites=self.ticket_overwrites(guild, user, support_role_id),
                 reason='Flame ticket'
             )
@@ -334,7 +333,12 @@ class Tickets(commands.Cog):
             template = str(button_config.get('name_template') or settings.get('ticket_name_template') or '🎫・{number}')[:90].strip() or '🎫・{number}'
             channel_name = self.replace_variables(template, guild, user, ticket_id, category, support_role)
             channel_name = re.sub(r'[\\r\\n]+', ' ', channel_name).strip()[:100] or f'🎫・{ticket_id}'
-            await channel.edit(name=channel_name, reason='Set guild ticket name')
+            topic_template = str(button_config.get('topic') or settings.get('ticket_topic') or '').strip()
+            if topic_template:
+                topic = self.replace_variables(topic_template, guild, user, ticket_id, category, support_role)[:1024]
+                await channel.edit(name=channel_name, topic=topic, reason='Set guild ticket name')
+            else:
+                await channel.edit(name=channel_name, reason='Set guild ticket name')
         except RuntimeError as exc:
             try:
                 await channel.delete(reason='Duplicate ticket prevented')
