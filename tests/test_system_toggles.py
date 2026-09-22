@@ -44,6 +44,15 @@ class SystemToggleTests(unittest.TestCase):
         self.assertGreaterEqual(source.count("tickets_enabled', True) is False"), 8)
         self.assertIn('status="open" AND channel_id<>?', source)
 
+    def test_ticket_claim_is_persistent_and_exclusive(self):
+        source = (ROOT / "cogs" / "tickets.py").read_text(encoding="utf-8")
+        database = (ROOT / "database.py").read_text(encoding="utf-8")
+        self.assertIn("claimed_by", database)
+        self.assertIn("SELECT claimed_by FROM tickets", source)
+        self.assertIn("UPDATE tickets SET claimed_by=?", source)
+        self.assertIn("UPDATE tickets SET claimed_by=NULL", source)
+        self.assertIn("التذكرة مستلمة بالفعل بواسطة", source)
+
     def test_ticket_lifecycle_actions_are_audited(self):
         source = (ROOT / "cogs" / "tickets.py").read_text(encoding="utf-8")
         self.assertIn("ticket_close", source)
