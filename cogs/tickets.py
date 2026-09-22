@@ -472,6 +472,18 @@ class Tickets(commands.Cog):
             return await interaction.edit_original_response(content='❌ هذه التذكرة ليست مغلقة.', view=None)
         if interaction.user.id != row['user_id'] and not interaction.user.guild_permissions.manage_channels:
             return await interaction.edit_original_response(content='❌ ما عندك صلاحية فتح هذه التذكرة.', view=None)
+        with connection() as conn:
+            existing = conn.execute(
+                'SELECT channel_id FROM tickets WHERE guild_id=? AND user_id=? AND status="open" AND channel_id<>? LIMIT 1',
+                (guild.id, int(row['user_id']), channel.id),
+            ).fetchone()
+        if existing:
+            existing_channel = guild.get_channel(int(existing['channel_id']))
+            target = existing_channel.mention if existing_channel else 'تذكرة مفتوحة أخرى'
+            return await interaction.edit_original_response(
+                content=f'❌ لا يمكن إعادة فتح هذه التذكرة لأن صاحبها لديه {target}. أغلق التذكرة المفتوحة أولًا.',
+                view=None,
+            )
         opener = guild.get_member(int(row['user_id']))
         if not opener:
             try:
