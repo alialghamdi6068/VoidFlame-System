@@ -59,6 +59,24 @@ class SystemToggleTests(unittest.TestCase):
         source = (ROOT / "cogs" / "tickets.py").read_text(encoding="utf-8")
         self.assertIn("if interaction.user.id != self.user_id and not interaction.user.guild_permissions.manage_channels:", source)
 
+    def test_combined_logs_cover_core_server_events(self):
+        source = (ROOT / "cogs" / "logs.py").read_text(encoding="utf-8")
+        for listener in (
+            "on_member_join",
+            "on_member_remove",
+            "on_message_delete",
+            "on_message_edit",
+            "on_guild_channel_create",
+            "on_guild_channel_delete",
+            "on_guild_role_create",
+            "on_guild_role_delete",
+            "on_member_ban",
+            "on_member_unban",
+        ):
+            self.assertIn(listener, source)
+        self.assertIn('settings.get("logs_enabled", True) is False', source)
+        self.assertIn("log_rate_limited", source)
+
     def test_dashboard_settings_are_audited(self):
         source = (ROOT / "web" / "api.py").read_text(encoding="utf-8")
         self.assertIn("from database import get_guild_data, update_guild_data, log_activity", source)
