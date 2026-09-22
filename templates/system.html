@@ -36,8 +36,10 @@
         <label>لون الزر<select name="ticket_button_style_{{i+1}}"><option value="success" {% if b.get('style','success')=='success' %}selected{% endif %}>أخضر</option><option value="primary" {% if b.get('style')=='primary' %}selected{% endif %}>أزرق</option><option value="secondary" {% if b.get('style')=='secondary' %}selected{% endif %}>رمادي</option><option value="danger" {% if b.get('style')=='danger' %}selected{% endif %}>أحمر</option></select></label>
         <label>القسم<select name="ticket_button_category_{{i+1}}"><option value="">الافتراضي</option>{% for c in categories %}<option value="{{c.id}}" {% if b.get('category_id')|string == c.id|string %}selected{% endif %}>{{c.name}}</option>{% endfor %}</select></label>
         <label>رتبة الدعم<select name="ticket_button_role_{{i+1}}"><option value="">الافتراضية</option>{% for r in roles|sort(attribute='position', reverse=true) %}{% if not r.is_default() %}<option value="{{r.id}}" {% if b.get('support_role_id')|string == r.id|string %}selected{% endif %}>@{{r.name}}</option>{% endif %}{% endfor %}</select></label>
-        <label>عنوان التذكرة<input name="ticket_button_title_{{i+1}}" value="{{b.get('title','')}}" placeholder="اتركه فارغاً للعادي"></label>
-        <label class="wide">رسالة التذكرة<textarea name="ticket_button_description_{{i+1}}" rows="3" placeholder="النص الذي يظهر داخل التذكرة">{{b.get('description','')}}</textarea></label>
+        <label>عنوان التذكرة<input name="ticket_button_title_{{i+1}}" value="{{b.get('title','')}}" maxlength="256" placeholder="اتركه فارغاً للعادي"></label>
+        <label>اسم قناة التذكرة<input name="ticket_button_name_{{i+1}}" value="{{b.get('name_template','')}}" maxlength="100" placeholder="مثال: 🎫・{number}"></label>
+        <label class="wide">موضوع قناة التذكرة<input name="ticket_button_topic_{{i+1}}" value="{{b.get('topic','')}}" maxlength="1024" placeholder="مثال: تذكرة {number} بواسطة {username}"></label>
+        <label class="wide">رسالة التذكرة<textarea name="ticket_button_description_{{i+1}}" rows="3" maxlength="4000" placeholder="النص الذي يظهر داخل التذكرة">{{b.get('description','')}}</textarea></label>
       </div></div>{% endfor %}
     </section>
     {% elif current_system == 'applications' %}
