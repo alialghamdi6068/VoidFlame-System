@@ -64,9 +64,39 @@ class SystemToggleTests(unittest.TestCase):
         self.assertEqual(source.count("log_activity(guild.id, 'ticket_reopen'"), 1)
         self.assertEqual(source.count("تم إعادة فتح التذكرة بواسطة"), 1)
 
-    def test_ticket_close_action_allows_staff_to_reopen_or_delete(self):
+    def test_ticket_close_action_is_persistent_and_uses_ticket_permissions(self):
         source = (ROOT / "cogs" / "tickets.py").read_text(encoding="utf-8")
-        self.assertIn("if interaction.user.id != self.user_id and not interaction.user.guild_permissions.manage_channels:", source)
+        self.assertIn("timeout=None", source)
+        self.assertIn("custom_id='flame_ticket_delete_closed'", source)
+        self.assertIn("custom_id='flame_ticket_reopen'", source)
+        self.assertIn("can_manage_ticket", source)
+
+    def test_ticket_delete_removes_database_row_after_channel_delete(self):
+        source = (ROOT / "cogs" / "tickets.py").read_text(encoding="utf-8")
+        self.assertIn("DELETE FROM tickets WHERE channel_id=?", source)
+
+    def test_ticket_support_role_can_manage_ticket_actions(self):
+        source = (ROOT / "cogs" / "tickets.py").read_text(encoding="utf-8")
+        self.assertIn("ticket_support_role_id", source)
+        self.assertIn("return bool(role_id and any(role.id == role_id for role in getattr(member, 'roles', [])))", source)
+
+    def test_ticket_panel_settings_include_per_button_name_and_topic(self):
+        api = (ROOT / "web" / "api.py").read_text(encoding="utf-8")
+        template = (ROOT / "templates" / "system.html").read_text(encoding="utf-8")
+        script = (ROOT / "static" / "script.js").read_text(encoding="utf-8")
+        self.assertIn("name_template", api)
+        self.assertIn("ticket_button_name_", template)
+        self.assertIn("ticket_button_topic_", template)
+        self.assertIn("ticket_button_name_", script)
+        self.assertIn("ticket_button_topic_", script)
+
+    def test_ticket_panel_refresh_is_wired_to_dashboard_save(self):
+        api = (ROOT / "web" / "api.py").read_text(encoding="utf-8")
+        source = (ROOT / "cogs" / "tickets.py").read_text(encoding="utf-8")
+        self.assertIn("ticket_panel_message_id", api)
+        self.assertIn("run_coroutine_threadsafe(tickets_cog.refresh_panel", api)
+        self.assertIn("async def refresh_panel", source)
+
 
     def test_combined_logs_cover_core_server_events(self):
         source = (ROOT / "cogs" / "logs.py").read_text(encoding="utf-8")
