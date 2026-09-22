@@ -50,7 +50,7 @@ class Logs(commands.Cog):
     async def on_member_join(self, member):
         await self.send_log(
             member.guild,
-            "Member Joined",
+            "👋 Member Joined",
             f"Member: {member.mention} (`{member.id}`)\\nAccount created: <t:{int(member.created_at.timestamp())}:R>",
             actor=member,
             color=discord.Color.green(),
@@ -60,7 +60,7 @@ class Logs(commands.Cog):
     async def on_member_remove(self, member):
         await self.send_log(
             member.guild,
-            "Member Left",
+            "🚪 Member Left",
             f"Member: {member} (`{member.id}`)",
             actor=member,
             color=discord.Color.orange(),
@@ -70,7 +70,7 @@ class Logs(commands.Cog):
     async def on_guild_channel_create(self, channel):
         await self.send_log(
             channel.guild,
-            "Channel Created",
+            "📝 Channel Created",
             f"Channel: {channel.mention} (`{channel.id}`)",
             color=discord.Color.green(),
         )
@@ -79,7 +79,7 @@ class Logs(commands.Cog):
     async def on_guild_channel_delete(self, channel):
         await self.send_log(
             channel.guild,
-            "Channel Deleted",
+            "🗑️ Channel Deleted",
             f"Channel: #{channel.name} (`{channel.id}`)",
             color=discord.Color.red(),
         )
@@ -88,7 +88,7 @@ class Logs(commands.Cog):
     async def on_guild_role_create(self, role):
         await self.send_log(
             role.guild,
-            "Role Created",
+            "🎭 Role Created",
             f"Role: {role.mention} (`{role.id}`)",
             color=discord.Color.green(),
         )
@@ -97,7 +97,7 @@ class Logs(commands.Cog):
     async def on_guild_role_delete(self, role):
         await self.send_log(
             role.guild,
-            "Role Deleted",
+            "🗑️ Role Deleted",
             f"Role: {role.name} (`{role.id}`)",
             color=discord.Color.red(),
         )
@@ -106,7 +106,7 @@ class Logs(commands.Cog):
     async def on_member_ban(self, guild, user):
         await self.send_log(
             guild,
-            "Member Banned",
+            "🔨 Member Banned",
             f"Member: {user} (`{user.id}`)",
             color=discord.Color.red(),
         )
@@ -115,7 +115,7 @@ class Logs(commands.Cog):
     async def on_member_unban(self, guild, user):
         await self.send_log(
             guild,
-            "Member Unbanned",
+            "🔓 Member Unbanned",
             f"Member: {user} (`{user.id}`)",
             color=discord.Color.green(),
         )
@@ -126,14 +126,14 @@ class Logs(commands.Cog):
     async def set_logs(self, ctx, channel: discord.TextChannel):
         update_guild_data(ctx.guild.id, log_channel_id=channel.id)
         log_activity(ctx.guild.id, 'log_channel_update', f'channel={channel.id}', ctx.author.id)
-        await ctx.reply(f'✅ تم تحديد روم اللوق: {channel.mention}')
+        await ctx.reply(f'✅ **تم تحديد روم اللوق**\n> القناة: {channel.mention}')
 
     @app_commands.command(name='logs', description='Set the security log channel')
     @app_commands.checks.has_permissions(manage_guild=True)
     async def set_logs_slash(self, interaction, channel: discord.TextChannel):
         update_guild_data(interaction.guild.id, log_channel_id=channel.id)
         log_activity(interaction.guild.id, 'log_channel_update', f'channel={channel.id}', interaction.user.id)
-        await interaction.response.send_message(f'✅ تم تحديد روم اللوق: {channel.mention}', ephemeral=True)
+        await interaction.response.send_message(f'✅ **تم تحديد روم اللوق**\n> القناة: {channel.mention}', ephemeral=True)
 
 
 async def setup(bot):
