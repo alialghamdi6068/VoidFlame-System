@@ -136,8 +136,8 @@ class TicketCloseActionView(discord.ui.View):
             self.remove_item(self.delete)
 
     async def interaction_check(self, interaction: discord.Interaction):
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message('❌ هذا الإجراء خاص بالشخص الذي أكد الإغلاق.', ephemeral=True)
+        if interaction.user.id != self.user_id and not interaction.user.guild_permissions.manage_channels:
+            await interaction.response.send_message('❌ هذا الإجراء خاص بصاحب التذكرة أو الإدارة.', ephemeral=True)
             return False
         return True
 
