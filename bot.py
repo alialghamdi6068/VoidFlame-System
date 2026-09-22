@@ -153,24 +153,30 @@ async def on_command(ctx):
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         return
-    if isinstance(error, commands.MissingPermissions):
-        return await ctx.reply("❌ ما عندك الصلاحية المطلوبة.")
-    if isinstance(error, commands.BotMissingPermissions):
-        return await ctx.reply("❌ البوت ناقصه صلاحية لتنفيذ الأمر.")
+
     if isinstance(error, commands.MissingRequiredArgument):
-        return await ctx.reply(f"❌ ناقصك المتغير: `{error.param.name}`.")
-    if isinstance(error, commands.BadArgument):
-        return await ctx.reply("❌ تأكد من المنشن أو الرقم أو البيانات المدخلة.")
-    if isinstance(error, commands.NoPrivateMessage):
-        return await ctx.reply("❌ هذا الأمر يعمل داخل السيرفر فقط.")
-    if isinstance(error, commands.CheckFailure):
-        return await ctx.reply("❌ ما عندك الصلاحية المطلوبة.")
+        return await ctx.reply(
+            f"❌ **بيانات ناقصة**\\n> المتغير المطلوب: `{error.param.name}`.",
+            mention_author=False,
+        )
+
+    friendly = {
+        commands.MissingPermissions: "❌ **صلاحيات غير كافية**\\n> ما عندك الصلاحية المطلوبة لتنفيذ هذا الأمر.",
+        commands.BotMissingPermissions: "❌ **صلاحيات البوت غير كافية**\\n> البوت يحتاج صلاحية إضافية لتنفيذ هذا الأمر.",
+        commands.BadArgument: "❌ **بيانات غير صحيحة**\\n> تأكد من المنشن أو الرقم أو القيم التي أدخلتها.",
+        commands.NoPrivateMessage: "❌ **الأمر غير متاح هنا**\\n> استخدم هذا الأمر داخل السيرفر.",
+        commands.CheckFailure: "❌ **تعذر تنفيذ الأمر**\\n> ما عندك الصلاحية المطلوبة أو لم تتحقق شروط الأمر.",
+    }
+    for error_type, message in friendly.items():
+        if isinstance(error, error_type):
+            return await ctx.reply(message, mention_author=False)
 
     original = getattr(error, "original", error)
     print(f"[{BOT_NAME}] Command error: {type(original).__name__}: {original}")
     try:
         await ctx.reply(
-            "❌ حدث خطأ أثناء تنفيذ الأمر. تم تسجيل الخطأ في السجل.\n\nالدعم: https://discord.gg/jH3vwYJyaB",
+            "❌ **تعذر تنفيذ الأمر**\\n> حدث خطأ غير متوقع وتم تسجيله للمراجعة.\\n\\n"
+            "الدعم: https://discord.gg/jH3vwYJyaB",
             mention_author=False,
         )
     except discord.HTTPException:
