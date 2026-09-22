@@ -62,14 +62,21 @@ class MemberTicketModal(discord.ui.Modal):
                 member = None
         if not member:
             return await interaction.edit_original_response(content='❌ لم أجد هذا العضو. أرسل الـ ID أو المنشن الصحيح.')
-        if self.action == 'add':
-            await interaction.channel.set_permissions(member, view_channel=True, send_messages=True, read_message_history=True)
-            await interaction.followup.send(f'✅ تمت إضافة {member.mention} إلى التذكرة.', ephemeral=True)
-            log_activity(interaction.guild.id, 'ticket_add_member', str(member.id), interaction.user.id)
-        else:
-            await interaction.channel.set_permissions(member, overwrite=None)
-            await interaction.followup.send(f'✅ تمت إزالة {member.mention} من التذكرة.', ephemeral=True)
-            log_activity(interaction.guild.id, 'ticket_remove_member', str(member.id), interaction.user.id)
+        try:
+            if self.action == 'add':
+                await interaction.channel.set_permissions(member, view_channel=True, send_messages=True, read_message_history=True)
+                message = f'✅ تمت إضافة {member.mention} إلى التذكرة.'
+                action = 'ticket_add_member'
+            else:
+                await interaction.channel.set_permissions(member, overwrite=None)
+                message = f'✅ تمت إزالة {member.mention} من التذكرة.'
+                action = 'ticket_remove_member'
+        except discord.Forbidden:
+            return await interaction.edit_original_response(content='❌ البوت لا يملك صلاحية تعديل صلاحيات القناة.')
+        except discord.HTTPException:
+            return await interaction.edit_original_response(content='❌ تعذر تعديل صلاحيات العضو حاليًا.')
+        await interaction.edit_original_response(content=message)
+        log_activity(interaction.guild.id, action, str(member.id), interaction.user.id)
 
 
 class TicketCloseConfirmView(discord.ui.View):
@@ -459,18 +466,6 @@ class Tickets(commands.Cog):
             row = conn.execute('SELECT * FROM tickets WHERE channel_id=? AND status="closed"', (channel.id,)).fetchone()
         if not row:
             return await interaction.edit_original_response(content='❌ هذه التذكرة ليست مغلقة.', view=None)
-        with connection() as conn:
-            existing = conn.execute(
-                'SELECT channel_id FROM tickets WHERE guild_id=? AND user_id=? AND status="open" AND channel_id<>? LIMIT 1',
-                (guild.id, int(row['user_id']), channel.id),
-            ).fetchone()
-        if existing:
-            existing_channel = guild.get_channel(int(existing['channel_id']))
-            target = existing_channel.mention if existing_channel else 'تذكرة مفتوحة أخرى'
-            return await interaction.edit_original_response(
-                content=f'❌ لا يمكن إعادة فتح هذه التذكرة لأن صاحبها لديه {target}. أغلق التذكرة المفتوحة أولًا.',
-                view=None,
-            )
         if interaction.user.id != row['user_id'] and not interaction.user.guild_permissions.manage_channels:
             return await interaction.edit_original_response(content='❌ ما عندك صلاحية حذف هذه التذكرة.', view=None)
         try:
@@ -605,7 +600,12 @@ class Tickets(commands.Cog):
             return await ctx.reply('❌ نظام التذاكر متوقف حاليًا.')
         if not self.is_ticket_channel(ctx.channel):
             return await ctx.reply('❌ هذا الأمر يعمل داخل تذكرة مفتوحة فقط.')
-        await ctx.channel.set_permissions(member, view_channel=True, send_messages=True, read_message_history=True)
+        try:
+            await ctx.channel.set_permissions(member, view_channel=True, send_messages=True, read_message_history=True)
+        except discord.Forbidden:
+            return await ctx.reply('❌ البوت لا يملك صلاحية تعديل صلاحيات القناة.')
+        except discord.HTTPException:
+            return await ctx.reply('❌ تعذر تعديل صلاحيات العضو حاليًا.')
         await ctx.reply(f'✅ تمت إضافة {member.mention} للتذكرة.')
         logs=self.bot.get_cog('Logs')
         if logs: await logs.send_log(ctx.guild, 'Ticket Add Member', f'Channel: {ctx.channel.mention}\nMember: {member.mention}', actor=ctx.author)
@@ -618,7 +618,12 @@ class Tickets(commands.Cog):
             return await ctx.reply('❌ نظام التذاكر متوقف حاليًا.')
         if not self.is_ticket_channel(ctx.channel):
             return await ctx.reply('❌ هذا الأمر يعمل داخل تذكرة مفتوحة فقط.')
-        await ctx.channel.set_permissions(member, overwrite=None)
+        try:
+            await ctx.channel.set_permissions(member, overwrite=None)
+        except discord.Forbidden:
+            return await ctx.reply('❌ البوت لا يملك صلاحية تعديل صلاحيات القناة.')
+        except discord.HTTPException:
+            return await ctx.reply('❌ تعذر تعديل صلاحيات العضو حاليًا.')
         await ctx.reply(f'✅ تمت إزالة {member.mention} من التذكرة.')
         logs=self.bot.get_cog('Logs')
         if logs: await logs.send_log(ctx.guild, 'Ticket Remove Member', f'Channel: {ctx.channel.mention}\nMember: {member.mention}', actor=ctx.author)
