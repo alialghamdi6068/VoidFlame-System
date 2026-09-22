@@ -293,7 +293,13 @@ class Tickets(commands.Cog):
             with connection() as conn:
                 conn.execute('UPDATE tickets SET status="closed", closed_at=CURRENT_TIMESTAMP WHERE channel_id=? AND status="open"', (int(existing_row['channel_id']),))
         try:
-            channel = await guild.create_text_channel(f'ticket-pending-{user.id}', category=category, overwrites=self.ticket_overwrites(guild, user, support_role_id), reason='Flame ticket')
+            channel = await guild.create_text_channel(
+                f'ticket-pending-{user.id}',
+                category=category,
+                topic=self.replace_variables(str(button_config.get('topic') or settings.get('ticket_topic') or ''), guild, user, 0, category, support_role)[:1024] or None,
+                overwrites=self.ticket_overwrites(guild, user, support_role_id),
+                reason='Flame ticket'
+            )
         except discord.Forbidden:
             return await interaction.followup.send('❌ البوت لا يملك Manage Channels لإنشاء التذكرة.', ephemeral=True)
         except discord.HTTPException:
@@ -433,7 +439,7 @@ class Tickets(commands.Cog):
                 view=None,
             )
         if interaction.user.id != row['user_id'] and not interaction.user.guild_permissions.manage_channels:
-            return await interaction.response.send_message('❌ ما عندك صلاحية حذف هذه التذكرة.', ephemeral=True)
+            return await interaction.edit_original_response(content='❌ ما عندك صلاحية حذف هذه التذكرة.', view=None)
         try:
             await interaction.edit_original_response(content='🗑️ جاري حذف التذكرة...', view=None)
             await channel.delete(reason=f'Ticket deleted by {interaction.user}')
@@ -461,7 +467,7 @@ class Tickets(commands.Cog):
         if not row:
             return await interaction.edit_original_response(content='❌ هذه التذكرة ليست مغلقة.', view=None)
         if interaction.user.id != row['user_id'] and not interaction.user.guild_permissions.manage_channels:
-            return await interaction.response.send_message('❌ ما عندك صلاحية فتح هذه التذكرة.', ephemeral=True)
+            return await interaction.edit_original_response(content='❌ ما عندك صلاحية فتح هذه التذكرة.', view=None)
         opener = guild.get_member(int(row['user_id']))
         if not opener:
             try:
