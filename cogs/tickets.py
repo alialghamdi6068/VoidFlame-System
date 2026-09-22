@@ -171,8 +171,37 @@ class TicketView(discord.ui.View):
             return await interaction.response.send_message('❌ هذا الزر للإدارة فقط.', ephemeral=True)
         if not self.cog.is_ticket_channel(interaction.channel):
             return await interaction.response.send_message('❌ هذه القناة ليست تذكرة مفتوحة.', ephemeral=True)
-        await interaction.response.send_message(f'📥 تم استلام التذكرة بواسطة {interaction.user.mention}.')
-        log_activity(interaction.guild.id, 'ticket_claim', str(interaction.channel), interaction.user.id)
+        with connection() as conn:
+            row = conn.execute(
+                'SELECT claimed_by FROM tickets WHERE channel_id=? AND status="open"',
+                (interaction.channel.id,),
+            ).fetchone()
+            if not row:
+                return await interaction.response.send_message('❌ هذه القناة ليست تذكرة مفتوحة.', ephemeral=True)
+            claimed_by = row['claimed_by']
+            if claimed_by and int(claimed_by) != interaction.user.id:
+                claimed_member = interaction.guild.get_member(int(claimed_by))
+                claimed_text = claimed_member.mention if claimed_member else f'<@{claimed_by}>'
+                return await interaction.response.send_message(
+                    f'❌ التذكرة مستلمة بالفعل بواسطة {claimed_text}.',
+                    ephemeral=True,
+                )
+            if claimed_by and int(claimed_by) == interaction.user.id:
+                conn.execute(
+                    'UPDATE tickets SET claimed_by=NULL WHERE channel_id=? AND status="open"',
+                    (interaction.channel.id,),
+                )
+                action = 'ticket_unclaim'
+                message = '📤 تم إلغاء استلام التذكرة.'
+            else:
+                conn.execute(
+                    'UPDATE tickets SET claimed_by=? WHERE channel_id=? AND status="open"',
+                    (interaction.user.id, interaction.channel.id),
+                )
+                action = 'ticket_claim'
+                message = f'📥 تم استلام التذكرة بواسطة {interaction.user.mention}.'
+        await interaction.response.send_message(message)
+        log_activity(interaction.guild.id, action, str(interaction.channel), interaction.user.id)
 
     @discord.ui.button(label='إضافة عضو', style=discord.ButtonStyle.success, emoji='➕', custom_id='flame_ticket_add_member')
     async def add_member(self, interaction: discord.Interaction, button: discord.ui.Button):
