@@ -648,8 +648,9 @@ class Tickets(commands.Cog):
 
     @commands.command(name='استلام')
     @commands.guild_only()
-    @commands.has_permissions(manage_channels=True)
-    async def claim_prefix(self, ctx):
+        async def claim_prefix(self, ctx):
+        if not self.can_manage_ticket(ctx.author, ctx.guild):
+            return await ctx.reply('❌ هذا الأمر لفريق الدعم أو الإدارة فقط.')
         if get_guild_data(ctx.guild.id).get('tickets_enabled', True) is False:
             return await ctx.reply('❌ نظام التذاكر متوقف حاليًا.')
         if not self.is_ticket_channel(ctx.channel):
@@ -688,8 +689,9 @@ class Tickets(commands.Cog):
 
     @commands.command(name='اضافة')
     @commands.guild_only()
-    @commands.has_permissions(manage_channels=True)
-    async def add_prefix(self, ctx, member: discord.Member):
+        async def add_prefix(self, ctx, member: discord.Member):
+        if not self.can_manage_ticket(ctx.author, ctx.guild):
+            return await ctx.reply('❌ هذا الأمر لفريق الدعم أو الإدارة فقط.')
         if get_guild_data(ctx.guild.id).get('tickets_enabled', True) is False:
             return await ctx.reply('❌ نظام التذاكر متوقف حاليًا.')
         if not self.is_ticket_channel(ctx.channel):
@@ -706,8 +708,9 @@ class Tickets(commands.Cog):
 
     @commands.command(name='ازالة')
     @commands.guild_only()
-    @commands.has_permissions(manage_channels=True)
-    async def remove_prefix(self, ctx, member: discord.Member):
+        async def remove_prefix(self, ctx, member: discord.Member):
+        if not self.can_manage_ticket(ctx.author, ctx.guild):
+            return await ctx.reply('❌ هذا الأمر لفريق الدعم أو الإدارة فقط.')
         if get_guild_data(ctx.guild.id).get('tickets_enabled', True) is False:
             return await ctx.reply('❌ نظام التذاكر متوقف حاليًا.')
         if not self.is_ticket_channel(ctx.channel):
