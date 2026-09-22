@@ -122,6 +122,8 @@ def _clean_ticket_buttons(value, guild):
                     button[key] = resource_id
         if item.get('title'):
             button['title'] = str(item['title'])[:256]
+        if item.get('name_template'):
+            button['name_template'] = str(item['name_template']).strip()[:100]
         if item.get('description'):
             button['description'] = str(item['description'])[:4000]
         if item.get('topic'):
