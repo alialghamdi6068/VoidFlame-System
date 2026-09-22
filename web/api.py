@@ -8,7 +8,7 @@ from services.settings_cache import settings_cache
 ALLOWED_SETTINGS = {
     'welcome_channel_id', 'welcome_message', 'auto_role_id', 'log_channel_id',
     'ticket_category_id', 'ticket_panel_channel_id', 'ticket_support_role_id',
-    'ticket_panel_title', 'ticket_panel_description', 'ticket_name_template',
+    'ticket_panel_title', 'ticket_panel_description', 'ticket_name_template', 'ticket_topic',
     'applications_channel_id',
     'suggestions_channel_id',
     'level_channel_id', 'level_announce', 'levels_enabled', 'xp_min', 'xp_max', 'level_cooldown', 'log_rate_limit', 'spam_window_seconds', 'spam_message_limit', 'mention_limit', 'raid_window_seconds', 'raid_join_threshold', 'raid_timeout_minutes', 'mass_change_window_seconds', 'mass_change_threshold', 'protection_timeout_minutes', 'ai_min_score', 'ai_medium_score', 'ai_high_score', 'ai_timeout_minutes', 'ai_repeat_threshold', 'ai_action_cooldown_seconds', 'mass_change_action', 'mass_change_lockdown', 'webhook_protection', 'permission_change_protection', 'guild_update_protection', 'trusted_user_ids', 'trusted_role_ids', 'raid_action', 'protection_action', 'warn_dm_enabled', 'warn_dm_message', 'ai_enabled', 'protection_enabled', 'anti_raid_enabled', 'mass_change_protection', 'disabled_log_events', 'ai_ignore_channels', 'ai_ignore_roles', 'protection_ignore_channels', 'protection_ignore_roles',
@@ -123,6 +123,8 @@ def _clean_ticket_buttons(value, guild):
             button['title'] = str(item['title'])[:256]
         if item.get('description'):
             button['description'] = str(item['description'])[:4000]
+        if item.get('topic'):
+            button['topic'] = str(item['topic'])[:1024]
         result.append(button)
     return result
 
@@ -236,7 +238,7 @@ def register_api(app, bot):
                 value = [str(x)[:30] for x in value[:100]]
             elif key in {'welcome_message', 'ticket_panel_title', 'ticket_panel_description', 'ticket_name_template', 'warn_dm_message'}:
                 value = str(value)
-                limits = {'welcome_message': 2000, 'ticket_panel_title': 256, 'ticket_panel_description': 4000, 'ticket_name_template': 100, 'warn_dm_message': 2000}
+                limits = {'welcome_message': 2000, 'ticket_panel_title': 256, 'ticket_panel_description': 4000, 'ticket_name_template': 100, 'ticket_topic': 1024, 'warn_dm_message': 2000}
                 value = value[:limits[key]]
             data[key] = value
 
