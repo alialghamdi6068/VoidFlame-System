@@ -565,7 +565,30 @@ class Tickets(commands.Cog):
             return await ctx.reply('❌ نظام التذاكر متوقف حاليًا.')
         if not self.is_ticket_channel(ctx.channel):
             return await ctx.reply('❌ هذا الأمر يعمل داخل تذكرة مفتوحة فقط.')
-        await ctx.reply(f'📥 تم استلام التذكرة بواسطة {ctx.author.mention}.')
+        with connection() as conn:
+            row = conn.execute(
+                'SELECT claimed_by FROM tickets WHERE channel_id=? AND status="open"',
+                (ctx.channel.id,),
+            ).fetchone()
+            if not row:
+                return await ctx.reply('❌ هذا الأمر يعمل داخل تذكرة مفتوحة فقط.')
+            claimed_by = row['claimed_by']
+            if claimed_by and int(claimed_by) != ctx.author.id:
+                claimed_member = ctx.guild.get_member(int(claimed_by))
+                claimed_text = claimed_member.mention if claimed_member else f'<@{claimed_by}>'
+                return await ctx.reply(f'❌ التذكرة مستلمة بالفعل بواسطة {claimed_text}.')
+            if claimed_by and int(claimed_by) == ctx.author.id:
+                conn.execute(
+                    'UPDATE tickets SET claimed_by=NULL WHERE channel_id=? AND status="open"',
+                    (ctx.channel.id,),
+                )
+                await ctx.reply('📤 تم إلغاء استلام التذكرة.')
+            else:
+                conn.execute(
+                    'UPDATE tickets SET claimed_by=? WHERE channel_id=? AND status="open"',
+                    (ctx.author.id, ctx.channel.id),
+                )
+                await ctx.reply(f'📥 تم استلام التذكرة بواسطة {ctx.author.mention}.')
         logs=self.bot.get_cog('Logs')
         if logs: await logs.send_log(ctx.guild, 'Ticket Claim', f'Channel: {ctx.channel.mention}', actor=ctx.author)
 
