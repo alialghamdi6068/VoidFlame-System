@@ -1,18 +1,26 @@
-name: Flame CI
+name: VoidFlame CI
 
 on:
   push:
-    branches: [main, rust-migration]
+    branches: [main]
   pull_request:
     branches: [main]
 
 jobs:
-  rust:
+  python:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Check Rust
-        run: cargo check
-      - name: Build Rust
-        run: cargo build --release
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest
+      - name: Compile Python
+        run: python -m compileall -q .
+      - name: Run tests
+        env:
+          DISCORD_TOKEN: ci-test-token
+          OWNER_ID: '1'
+        run: pytest -q
