@@ -10,15 +10,17 @@ class AutoReply(commands.Cog):
         if not message.guild or message.author.bot:
             return
         settings=get_guild_data(message.guild.id)
-        if settings.get('autoreply_enabled',True) is False:
+        if settings.get('autoreply_enabled',False) is False:
             return
         channel_id=settings.get('autoreply_channel_id')
         if channel_id and message.channel.id != int(channel_id):
             return
         replies=settings.get('autoreplies',{})
-        text=message.content.lower()
+        text=message.content.strip()
         for trigger,response in replies.items():
-            if trigger.lower() in text:
+            # Automatic replies are exact-match only. A trigger must equal the
+            # entire message after trimming surrounding whitespace.
+            if text.casefold() == str(trigger).strip().casefold():
                 try:
                     await message.channel.send(str(response)[:2000],allowed_mentions=discord.AllowedMentions.none())
                 except (discord.Forbidden,discord.HTTPException):
@@ -29,7 +31,7 @@ class AutoReply(commands.Cog):
     @commands.has_permissions(manage_guild=True)
     async def add_reply(self,ctx,trigger:str,*,response:str):
         settings=get_guild_data(ctx.guild.id)
-        if settings.get('autoreply_enabled', True) is False:
+        if settings.get('autoreply_enabled', False) is False:
             return await ctx.reply('❌ نظام الردود التلقائية متوقف حاليًا.')
         replies=dict(settings.get('autoreplies',{}))
         trigger=trigger.strip()[:100]
