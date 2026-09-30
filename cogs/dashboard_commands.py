@@ -34,7 +34,7 @@ class DashboardCommands(commands.Cog):
             color=discord.Color.blurple(),
         )
         embed.add_field(name="السيرفرات", value=str(len(self.bot.guilds)))
-        embed.add_field(name="Ping", value=f"{round(self.bot.latency * 1000)}ms"))
+        embed.add_field(name="Ping", value=f"{round(self.bot.latency * 1000)}ms")
         embed.add_field(name="الأوامر", value=f"{len(self.bot.tree.get_commands())} Slash")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
