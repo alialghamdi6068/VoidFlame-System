@@ -1,4 +1,5 @@
 import secrets
+import threading
 import time
 from collections import defaultdict, deque
 from functools import wraps
@@ -7,6 +8,7 @@ from flask import abort, request, session
 
 
 _RATE_BUCKETS = defaultdict(deque)
+_RATE_LOCK = threading.RLock()
 _RATE_LIMITS = {
     'login': (8, 60),
     'callback': (8, 60),
@@ -25,17 +27,25 @@ def rate_limit(bucket):
     limit, window = _RATE_LIMITS[bucket]
     key = (bucket, client_ip())
     now = time.monotonic()
-    events = _RATE_BUCKETS[key]
-    while events and now - events[0] >= window:
-        events.popleft()
-    if len(events) >= limit:
-        abort(429, description='تم تجاوز عدد المحاولات المسموح بها. حاول لاحقًا.')
-    events.append(now)
-    if len(_RATE_BUCKETS) > _MAX_RATE_BUCKETS:
-        stale_before = now - 60
-        stale = [k for k, q in _RATE_BUCKETS.items() if not q or q[-1] < stale_before]
-        for old_key in stale[:2000]:
-            _RATE_BUCKETS.pop(old_key, None)
+
+    with _RATE_LOCK:
+        events = _RATE_BUCKETS[key]
+        while events and now - events[0] >= window:
+            events.popleft()
+
+        if len(events) >= limit:
+            abort(429, description='تم تجاوز عدد المحاولات المسموح بها. حاول لاحقًا.')
+
+        events.append(now)
+
+        if len(_RATE_BUCKETS) > _MAX_RATE_BUCKETS:
+            stale_before = now - 60
+            stale = [
+                k for k, q in _RATE_BUCKETS.items()
+                if not q or q[-1] < stale_before
+            ]
+            for old_key in stale[:2000]:
+                _RATE_BUCKETS.pop(old_key, None)
 
 
 def csrf_token():
