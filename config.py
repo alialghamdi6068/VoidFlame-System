@@ -39,10 +39,9 @@ DISCORD_TOKEN = _value("DISCORD_TOKEN")
 DISCORD_CLIENT_ID = _value("DISCORD_CLIENT_ID")
 DISCORD_CLIENT_SECRET = _value("DISCORD_CLIENT_SECRET")
 PUBLIC_URL = _value("PUBLIC_URL").rstrip("/")
-PUBLIC_URL = _value("PUBLIC_URL").rstrip("/")
 DISCORD_REDIRECT_URI = _value("DISCORD_REDIRECT_URI") or (f"{PUBLIC_URL}/callback" if PUBLIC_URL else "")
-COOKIE_SECURE = _value("COOKIE_SECURE", "false").lower() in {"1", "true", "yes", "on"} or (f"{PUBLIC_URL}/callback" if PUBLIC_URL else "")
 COOKIE_SECURE = _value("COOKIE_SECURE", "false").lower() in {"1", "true", "yes", "on"}
+
 DATABASE_PATH = Path(os.getenv("DATABASE_PATH", _FILE_CONFIG.get("database_path", DATA_DIR / "flame.db")))
 DATABASE_PATH = DATABASE_PATH if DATABASE_PATH.is_absolute() else BASE_DIR / DATABASE_PATH
 
@@ -54,7 +53,6 @@ BOT_NAME = "VoidFlame System"
 DASHBOARD_NAME = "VoidFlame System"
 OWNER_ID = int(os.getenv("OWNER_ID", _FILE_CONFIG.get("owner_id", "1293157778030071920")))
 SUPPORT_SERVER_URL = "https://discord.gg/jH3vwYJyaB"
-HOSTING_PROVIDER = "Morg Hosting"
 HOSTING_PROVIDER = "Morg Hosting"
 
 
