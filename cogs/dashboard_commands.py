@@ -4,11 +4,17 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from config import BOT_NAME, SUPPORT_SERVER_URL
+from config import BOT_NAME, OWNER_ID, SUPPORT_SERVER_URL
+
+
+def owner_only():
+    async def predicate(interaction: discord.Interaction):
+        return interaction.user.id == OWNER_ID
+    return app_commands.check(predicate)
 
 
 class DashboardCommands(commands.Cog):
-    """Public/admin dashboard commands."""
+    """Public utilities plus owner-only bot management commands."""
 
     def __init__(self, bot):
         self.bot = bot
@@ -28,7 +34,7 @@ class DashboardCommands(commands.Cog):
             color=discord.Color.blurple(),
         )
         embed.add_field(name="السيرفرات", value=str(len(self.bot.guilds)))
-        embed.add_field(name="Ping", value=f"{round(self.bot.latency * 1000)}ms")
+        embed.add_field(name="Ping", value=f"{round(self.bot.latency * 1000)}ms"))
         embed.add_field(name="الأوامر", value=f"{len(self.bot.tree.get_commands())} Slash")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -36,80 +42,60 @@ class DashboardCommands(commands.Cog):
     async def invite(self, interaction: discord.Interaction):
         client_id = str(self.bot.user.id if self.bot.user else "").strip()
         if not client_id:
-            return await interaction.response.send_message(
-                "❌ تعذر إنشاء رابط الدعوة حاليًا.", ephemeral=True
-            )
-        url = (
-            "https://discord.com/oauth2/authorize?"
-            f"client_id={client_id}&scope=bot%20applications.commands"
-        )
-        await interaction.response.send_message(
-            f"🔗 **رابط إضافة البوت:**\n{url}", ephemeral=True
-        )
+            return await interaction.response.send_message("❌ تعذر إنشاء رابط الدعوة حاليًا.", ephemeral=True)
+        url = f"https://discord.com/oauth2/authorize?client_id={client_id}&scope=bot%20applications.commands"
+        await interaction.response.send_message(f"🔗 **رابط إضافة البوت:**\n{url}", ephemeral=True)
 
     @app_commands.command(name="support", description="Open the support server")
     async def support(self, interaction: discord.Interaction):
-        await interaction.response.send_message(
-            f"🛟 **الدعم:** {SUPPORT_SERVER_URL}", ephemeral=True
-        )
+        await interaction.response.send_message(f"🛟 **الدعم:** {SUPPORT_SERVER_URL}", ephemeral=True)
 
     @app_commands.command(name="setup", description="Open the bot setup/dashboard")
     @app_commands.guild_only()
     @app_commands.checks.has_permissions(manage_guild=True)
     async def setup_command(self, interaction: discord.Interaction):
         dashboard_url = os.getenv("DASHBOARD_URL", "").strip() or "https://voidflame.wisp.uno/"
-        await interaction.response.send_message(
-            f"⚙️ افتح لوحة التحكم لإعداد السيرفر:\n{dashboard_url}",
-            ephemeral=True,
-        )
+        await interaction.response.send_message(f"⚙️ افتح لوحة التحكم لإعداد السيرفر:\n{dashboard_url}", ephemeral=True)
 
     @app_commands.command(name="sync", description="Synchronize slash commands")
-    @app_commands.checks.has_permissions(administrator=True)
+    @owner_only()
     async def sync(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         synced = await self.bot.tree.sync()
-        await interaction.followup.send(
-            f"✅ تمت مزامنة **{len(synced)}** أمر Slash.", ephemeral=True
-        )
+        await interaction.followup.send(f"✅ تمت مزامنة **{len(synced)}** أمر Slash.", ephemeral=True)
 
-    @app_commands.command(name="reload", description="Reload loaded bot cogs")
-    @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.command(name="reload", description="Reload all bot systems")
+    @owner_only()
     async def reload(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         failed = []
         loaded = 0
         for extension in list(self.bot.extensions):
-            if extension == "cogs.dashboard_commands":
+            if extension in {"cogs.dashboard_commands", "cogs.maintenance"}:
                 continue
             try:
                 await self.bot.reload_extension(extension)
                 loaded += 1
             except Exception as exc:
-                failed.append(f"{extension.removeprefix('cogs.')}: {type(exc).__name__}: {exc}")
-
+                failed.append(f"{extension.removeprefix('cogs.')}: {type(exc).__name__}")
         if failed:
-            return await interaction.followup.send(
-                "⚠️ تمت إعادة تحميل الأنظمة مع أخطاء:\n" + "\n".join(failed),
+            await interaction.followup.send(
+                "⚠️ تمت إعادة تحميل الأنظمة مع أخطاء:\n" + "\n".join(failed)[:1800],
                 ephemeral=True,
             )
-        await interaction.followup.send(
-            f"✅ تمت إعادة تحميل **{loaded}** نظامًا.", ephemeral=True
-        )
+            return
+        await interaction.followup.send(f"✅ تمت إعادة تحميل **{loaded}** نظامًا.", ephemeral=True)
 
     @app_commands.command(name="reboot", description="Restart the bot process")
-    @app_commands.checks.has_permissions(administrator=True)
+    @owner_only()
     async def reboot(self, interaction: discord.Interaction):
-        await interaction.response.send_message(
-            "♻️ سيتم إعادة تشغيل البوت الآن.", ephemeral=True
-        )
+        await interaction.response.send_message("♻️ سيتم إعادة تشغيل البوت الآن.", ephemeral=True)
         await self.bot.close()
 
     @app_commands.command(name="avatar", description="Show a member avatar")
     async def avatar(self, interaction: discord.Interaction, member: discord.Member | None = None):
         member = member or interaction.user
-        embed = discord.Embed(
-            title=f"🖼️ صورة {member.display_name}", color=discord.Color.blurple()
-        )
+        embed = discord.Embed(title=f"🖼️ صورة {member.display_name}", color=discord.Color.blurple())
         embed.set_image(url=member.display_avatar.url)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -121,10 +107,7 @@ class DashboardCommands(commands.Cog):
         embed.add_field(name="الأعضاء", value=str(guild.member_count or 0))
         embed.add_field(name="الرومات", value=str(len(guild.channels)))
         embed.add_field(name="الأدوار", value=str(len(guild.roles)))
-        embed.add_field(
-            name="المالك",
-            value=f"<@{guild.owner_id}>" if guild.owner_id else "غير معروف",
-        )
+        embed.add_field(name="المالك", value=f"<@{guild.owner_id}>" if guild.owner_id else "غير معروف")
         if guild.icon:
             embed.set_thumbnail(url=guild.icon.url)
         await interaction.response.send_message(embed=embed, ephemeral=True)
