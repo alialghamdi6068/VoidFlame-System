@@ -164,4 +164,16 @@ def register_dashboard(app, bot):
     @logged_in
     def commands_page(guild_id):
         guild = require_guild(guild_id, bot)
+        groups = {}
+        for command in bot.commands:
+            if command.hidden or command.name in {'help', 'مساعدة', 'اوامر', 'اوامر_الادارة'}:
+                continue
+            groups.setdefault(command.cog_name or 'أخرى', []).append(command)
+        for commands_list in groups.values():
+            commands_list.sort(key=lambda command: command.name)
+        return render_template('commands.html', user=session['user'], guild=guild, command_groups=groups)
+
+    @logged_in
+    def commands_page(guild_id):
+        guild = require_guild(guild_id, bot)
         return render_template('commands.html', user=session['user'], guild=guild)
