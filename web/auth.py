@@ -1,4 +1,5 @@
 import secrets
+import threading
 import time
 import requests
 from flask import redirect, request, session, url_for, render_template
@@ -6,6 +7,48 @@ from config import DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_REDIRECT_UR
 from web.security import rate_limit, csrf_token, validate_csrf, validate_same_origin
 
 DISCORD_API = 'https://discord.com/api/v10'
+_OAUTH_SESSIONS = {}
+_OAUTH_LOCK = threading.RLock()
+_MAX_OAUTH_SESSIONS = 5000
+_SESSION_TTL = 7 * 24 * 60 * 60
+
+
+def _new_session_id():
+    session_id = secrets.token_urlsafe(48)
+    now = time.time()
+    with _OAUTH_LOCK:
+        if len(_OAUTH_SESSIONS) >= _MAX_OAUTH_SESSIONS:
+            stale = [key for key, value in _OAUTH_SESSIONS.items() if now - value.get('last_seen', 0) > _SESSION_TTL]
+            for key in stale[:1000]:
+                _OAUTH_SESSIONS.pop(key, None)
+        _OAUTH_SESSIONS[session_id] = {'last_seen': now}
+    return session_id
+
+
+def _oauth_data():
+    session_id = session.get('session_id')
+    if not session_id:
+        return None
+    with _OAUTH_LOCK:
+        data = _OAUTH_SESSIONS.get(session_id)
+        if data:
+            data['last_seen'] = time.time()
+            return data
+    return None
+
+
+def _set_oauth_data(oauth):
+    session_id = session.get('session_id') or _new_session_id()
+    session['session_id'] = session_id
+    with _OAUTH_LOCK:
+        _OAUTH_SESSIONS[session_id] = {'oauth': dict(oauth), 'last_seen': time.time()}
+
+
+def _clear_oauth_data():
+    session_id = session.pop('session_id', None)
+    if session_id:
+        with _OAUTH_LOCK:
+            _OAUTH_SESSIONS.pop(session_id, None)
 
 
 def _managed_guilds_from_token(token):
@@ -36,7 +79,8 @@ def _managed_guilds_from_token(token):
 
 
 def _refresh_access_token():
-    oauth = session.get('oauth') or {}
+    data = _oauth_data() or {}
+    oauth = data.get('oauth') or {}
     refresh_token = oauth.get('refresh_token')
     if not refresh_token or not DISCORD_CLIENT_ID or not DISCORD_CLIENT_SECRET:
         return None
@@ -57,11 +101,11 @@ def _refresh_access_token():
         access_token = token.get('access_token')
         if not isinstance(access_token, str) or not access_token:
             return None
-        session['oauth'] = {
+        _set_oauth_data({
             'access_token': access_token,
             'refresh_token': token.get('refresh_token') or refresh_token,
             'expires_at': time.time() + int(token.get('expires_in', 604800)),
-        }
+        })
         return access_token
     except (requests.RequestException, ValueError, TypeError):
         return None
@@ -74,6 +118,7 @@ def register_auth(app, bot):
         if not DISCORD_CLIENT_ID or not DISCORD_CLIENT_SECRET or not DISCORD_REDIRECT_URI:
             return render_template('error.html'), 500
         state = secrets.token_urlsafe(32)
+        _clear_oauth_data()
         session.clear()
         session['oauth_state'] = state
         csrf_token()
@@ -129,13 +174,16 @@ def register_auth(app, bot):
                 session.clear()
                 return render_template('error.html'), 500
             guilds = _managed_guilds_from_token(access_token)
+            if guilds is None:
+                session.clear()
+                return render_template('error.html'), 502
             user = user_response.json()
             session.clear()
-            session['oauth'] = {
+            _set_oauth_data({
                 'access_token': access_token,
                 'refresh_token': token.get('refresh_token'),
                 'expires_at': time.time() + int(token.get('expires_in', 604800)),
-            }
+            })
             session['user'] = {
                 'id': str(user.get('id', '')),
                 'username': user.get('username'),
@@ -154,6 +202,7 @@ def register_auth(app, bot):
         rate_limit('logout')
         validate_same_origin()
         validate_csrf()
+        _clear_oauth_data()
         session.clear()
         return redirect(url_for('home'))
 
@@ -167,8 +216,6 @@ def discord_token():
     except (TypeError, ValueError):
         expires_at = 0
 
-    # Refresh slightly before expiry so the dashboard does not suddenly log out
-    # during normal use. Discord refresh tokens are rotated, so persist the new one.
     if token and time.time() < expires_at - 60:
         return token
 
@@ -180,17 +227,13 @@ def discord_token():
 
 
 def managed_guild_ids():
-    """Return the user's current Discord-managed guilds.
-
-    The session copy is only a fallback. Permissions can change after OAuth login,
-    so authorization checks refresh the guild list from Discord when possible.
-    """
     token = discord_token()
     if token:
         current = _managed_guilds_from_token(token)
         if current is not None:
             session['managed_guild_ids'] = sorted(current)
             return current
+
     cached = session.get('managed_guild_ids')
     if isinstance(cached, list):
         result = set()
