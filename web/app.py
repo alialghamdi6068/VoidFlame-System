@@ -1,6 +1,7 @@
 from flask import Flask, Response, render_template, request, session
 from werkzeug.middleware.proxy_fix import ProxyFix
 from config import SESSION_SECRET, COOKIE_SECURE
+from database import connection
 from web.security import csrf_token, rate_limit
 
 
@@ -62,7 +63,23 @@ def create_app(bot):
 
     @app.get('/health')
     def health():
-        return {'status': 'ok', 'bot_ready': bot.is_ready()}
+        database_ok = False
+        try:
+            with connection() as conn:
+                conn.execute('SELECT 1').fetchone()
+            database_ok = True
+        except Exception:
+            database_ok = False
+
+        bot_ready = bot.is_ready()
+        healthy = bot_ready and database_ok
+        return {
+            'status': 'ok' if healthy else 'degraded',
+            'bot_ready': bot_ready,
+            'database_ok': database_ok,
+            'guild_count': len(bot.guilds),
+            'latency_ms': round(bot.latency * 1000, 1) if bot_ready else None,
+        }, 200 if healthy else 503
 
     @app.get('/robots.txt')
     def robots():
@@ -110,4 +127,3 @@ def create_app(bot):
         return render_template('error.html'), 500
 
     return app
-
