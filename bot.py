@@ -154,31 +154,34 @@ async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         return
 
+    embed = discord.Embed(
+        title='⚠️ تعذر تنفيذ الأمر',
+        color=discord.Color.from_rgb(239, 68, 68)
+    )
+    embed.set_footer(text=f'{BOT_NAME} • مركز المساعدة')
+
     if isinstance(error, commands.MissingRequiredArgument):
-        return await ctx.reply(
-            f"❌ **بيانات ناقصة**\\n> المتغير المطلوب: `{error.param.name}`.",
-            mention_author=False,
-        )
+        embed.description = f'البيانات المطلوبة ناقصة.\nالمتغير: **{error.param.name}**'
+        if ctx.command:
+            usage = f'!{ctx.command.name} {ctx.command.signature or ""}'.strip()
+            embed.add_field(name='الاستخدام', value=usage[:1024], inline=False)
+    elif isinstance(error, commands.MissingPermissions):
+        embed.description = 'ما عندك الصلاحية المطلوبة لتنفيذ هذا الأمر.'
+    elif isinstance(error, commands.BotMissingPermissions):
+        embed.description = 'البوت يحتاج صلاحية إضافية لتنفيذ هذا الأمر.'
+    elif isinstance(error, commands.BadArgument):
+        embed.description = 'البيانات المرسلة غير صحيحة. تأكد من المنشن أو الرقم أو القيمة المطلوبة.'
+    elif isinstance(error, commands.NoPrivateMessage):
+        embed.description = 'هذا الأمر متاح داخل السيرفر فقط.'
+    elif isinstance(error, commands.CheckFailure):
+        embed.description = 'لم تتحقق شروط استخدام هذا الأمر أو لا تملك الصلاحية المطلوبة.'
+    else:
+        original = getattr(error, 'original', error)
+        print(f'[{BOT_NAME}] Command error: {type(original).__name__}: {original}')
+        embed.description = 'حدث خطأ غير متوقع وتم تسجيله للمراجعة. إذا استمر الخطأ، تواصل مع الإدارة.'
 
-    friendly = {
-        commands.MissingPermissions: "❌ **صلاحيات غير كافية**\\n> ما عندك الصلاحية المطلوبة لتنفيذ هذا الأمر.",
-        commands.BotMissingPermissions: "❌ **صلاحيات البوت غير كافية**\\n> البوت يحتاج صلاحية إضافية لتنفيذ هذا الأمر.",
-        commands.BadArgument: "❌ **بيانات غير صحيحة**\\n> تأكد من المنشن أو الرقم أو القيم التي أدخلتها.",
-        commands.NoPrivateMessage: "❌ **الأمر غير متاح هنا**\\n> استخدم هذا الأمر داخل السيرفر.",
-        commands.CheckFailure: "❌ **تعذر تنفيذ الأمر**\\n> ما عندك الصلاحية المطلوبة أو لم تتحقق شروط الأمر.",
-    }
-    for error_type, message in friendly.items():
-        if isinstance(error, error_type):
-            return await ctx.reply(message, mention_author=False)
-
-    original = getattr(error, "original", error)
-    print(f"[{BOT_NAME}] Command error: {type(original).__name__}: {original}")
     try:
-        await ctx.reply(
-            "❌ **تعذر تنفيذ الأمر**\\n> حدث خطأ غير متوقع وتم تسجيله للمراجعة.\\n\\n"
-            "الدعم: https://discord.gg/jH3vwYJyaB",
-            mention_author=False,
-        )
+        await ctx.reply(embed=embed, mention_author=False)
     except discord.HTTPException:
         pass
 
