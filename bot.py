@@ -18,8 +18,6 @@ intents.presences = True
 
 bot = commands.Bot(command_prefix=BOT_PREFIX, intents=intents, help_command=None)
 
-# Keep one authoritative list. Several older helper cogs duplicated commands
-# already provided by the main cogs and could fail to load because of collisions.
 SYSTEM_COGS = [
     "moderation", "tickets", "applications", "levels", "welcome", "logs",
     "giveaways", "suggestions", "afk", "autoreply", "autorole", "announcements",
@@ -101,6 +99,7 @@ async def on_guild_join(guild):
         except Exception as exc:
             print(f"[VoidFlame] Failed to register ticket views for new guild {guild.id}: {exc}")
 
+
 @bot.event
 async def on_ready():
     settings_cache.clear()
@@ -110,9 +109,8 @@ async def on_ready():
             tickets.register_persistent_views()
         except Exception as exc:
             print(f"[{BOT_NAME}] Ticket view registration failed: {type(exc).__name__}: {exc}")
+
     print(f"[{BOT_NAME}] Logged in as {bot.user} | Guilds: {len(bot.guilds)}")
-    for guild in bot.guilds:
-        print(f"[{BOT_NAME}] Guild: {guild.name} ({guild.id})")
     if not bot._slash_synced:
         try:
             synced = await bot.tree.sync()
@@ -155,30 +153,30 @@ async def on_command_error(ctx, error):
         return
 
     embed = discord.Embed(
-        title='⚠️ تعذر تنفيذ الأمر',
-        color=discord.Color.from_rgb(239, 68, 68)
+        title="⚠️ تعذر تنفيذ الأمر",
+        color=discord.Color.from_rgb(239, 68, 68),
     )
-    embed.set_footer(text=f'{BOT_NAME} • مركز المساعدة')
+    embed.set_footer(text=f"{BOT_NAME} • مركز المساعدة")
 
     if isinstance(error, commands.MissingRequiredArgument):
-        embed.description = f'البيانات المطلوبة ناقصة.\nالمتغير: **{error.param.name}**'
+        embed.description = f"البيانات المطلوبة ناقصة.\nالمتغير: **{error.param.name}**"
         if ctx.command:
-            usage = f'!{ctx.command.name} {ctx.command.signature or ""}'.strip()
-            embed.add_field(name='الاستخدام', value=usage[:1024], inline=False)
+            usage = f"!{ctx.command.name} {ctx.command.signature or ''}".strip()
+            embed.add_field(name="الاستخدام", value=usage[:1024], inline=False)
     elif isinstance(error, commands.MissingPermissions):
-        embed.description = 'ما عندك الصلاحية المطلوبة لتنفيذ هذا الأمر.'
+        embed.description = "ما عندك الصلاحية المطلوبة لتنفيذ هذا الأمر."
     elif isinstance(error, commands.BotMissingPermissions):
-        embed.description = 'البوت يحتاج صلاحية إضافية لتنفيذ هذا الأمر.'
+        embed.description = "البوت يحتاج صلاحية إضافية لتنفيذ هذا الأمر."
     elif isinstance(error, commands.BadArgument):
-        embed.description = 'البيانات المرسلة غير صحيحة. تأكد من المنشن أو الرقم أو القيمة المطلوبة.'
+        embed.description = "البيانات المرسلة غير صحيحة. تأكد من المنشن أو الرقم أو القيمة المطلوبة."
     elif isinstance(error, commands.NoPrivateMessage):
-        embed.description = 'هذا الأمر متاح داخل السيرفر فقط.'
+        embed.description = "هذا الأمر متاح داخل السيرفر فقط."
     elif isinstance(error, commands.CheckFailure):
-        embed.description = 'لم تتحقق شروط استخدام هذا الأمر أو لا تملك الصلاحية المطلوبة.'
+        embed.description = "لم تتحقق شروط استخدام هذا الأمر أو لا تملك الصلاحية المطلوبة."
     else:
-        original = getattr(error, 'original', error)
-        print(f'[{BOT_NAME}] Command error: {type(original).__name__}: {original}')
-        embed.description = 'حدث خطأ غير متوقع وتم تسجيله للمراجعة. إذا استمر الخطأ، تواصل مع الإدارة.'
+        original = getattr(error, "original", error)
+        print(f"[{BOT_NAME}] Command error: {type(original).__name__}: {original}")
+        embed.description = "حدث خطأ غير متوقع وتم تسجيله للمراجعة. إذا استمر الخطأ، تواصل مع الإدارة."
 
     try:
         await ctx.reply(embed=embed, mention_author=False)
@@ -192,12 +190,11 @@ async def load_cogs():
         print(f"[{BOT_NAME}] Loaded cogs.maintenance")
     except Exception as exc:
         print(f"[{BOT_NAME}] Failed to load cogs.maintenance: {type(exc).__name__}: {exc}")
-        return
+        return False
 
-    if is_maintenance():
-        print(f"[{BOT_NAME}] Global maintenance is active; system cogs remain disabled.")
-        return
-
+    # Always load the systems first. If maintenance was enabled before the last
+    # restart, we unload them after loading so the owner can still run !صيانة
+    # and disable maintenance without manually editing the database.
     for name in SYSTEM_COGS:
         try:
             await bot.load_extension(f"cogs.{name}")
@@ -209,6 +206,14 @@ async def load_cogs():
         except Exception as exc:
             print(f"[{BOT_NAME}] Failed to load cogs.{name}: {type(exc).__name__}: {exc}")
 
+    if is_maintenance():
+        maintenance = bot.get_cog("Maintenance")
+        if maintenance:
+            unloaded = await maintenance._disable_all_systems()
+            print(f"[{BOT_NAME}] Maintenance active; unloaded {len(unloaded)} systems.")
+
+    return True
+
 
 def run_web():
     app.run(host=HOST, port=PORT, debug=False, use_reloader=False)
@@ -216,7 +221,8 @@ def run_web():
 
 async def main():
     init_db()
-    await load_cogs()
+    if not await load_cogs():
+        return
     threading.Thread(target=run_web, daemon=True, name="flame-dashboard").start()
     await bot.start(DISCORD_TOKEN)
 
