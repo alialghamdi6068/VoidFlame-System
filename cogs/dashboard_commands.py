@@ -92,13 +92,6 @@ class DashboardCommands(commands.Cog):
         await interaction.response.send_message("♻️ سيتم إعادة تشغيل البوت الآن.", ephemeral=True)
         await self.bot.close()
 
-    @app_commands.command(name="avatar", description="Show a member avatar")
-    async def avatar(self, interaction: discord.Interaction, member: discord.Member | None = None):
-        member = member or interaction.user
-        embed = discord.Embed(title=f"🖼️ صورة {member.display_name}", color=discord.Color.blurple())
-        embed.set_image(url=member.display_avatar.url)
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
     @app_commands.command(name="server", description="Show server information")
     @app_commands.guild_only()
     async def server(self, interaction: discord.Interaction):
