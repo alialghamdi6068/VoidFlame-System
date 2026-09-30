@@ -2,7 +2,7 @@ import secrets
 import time
 import requests
 from flask import redirect, request, session, url_for, render_template
-from config import DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_REDIRECT_URI
+from config import DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_REDIRECT_URI, PUBLIC_URL
 from web.security import rate_limit, csrf_token, validate_csrf, validate_same_origin
 
 DISCORD_API = 'https://discord.com/api/v10'
