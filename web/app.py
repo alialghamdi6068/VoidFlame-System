@@ -110,3 +110,4 @@ def create_app(bot):
         return render_template('error.html'), 500
 
     return app
+
