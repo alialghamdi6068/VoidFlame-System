@@ -1,0 +1,10 @@
+{
+  "discord_token": "PUT_YOUR_DISCORD_BOT_TOKEN_HERE",
+  "owner_id": "1293157778030071920",
+  "data_dir": "data",
+  "database_path": "data/flame.db",
+
+  "discord_client_id": "",
+  "discord_client_secret": "",
+  "discord_redirect_uri": ""
+}
