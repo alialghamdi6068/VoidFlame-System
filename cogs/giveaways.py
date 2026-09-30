@@ -31,7 +31,12 @@ class Giveaways(commands.Cog):
         settings = get_guild_data(guild.id)
         if settings.get('giveaways_enabled', True) is False:
             return False
-        configured = guild.get_channel(int(settings['giveaways_channel_id'])) if settings.get('giveaways_channel_id') else None
+        configured = None
+        if settings.get('giveaways_channel_id'):
+            try:
+                configured = guild.get_channel(int(settings['giveaways_channel_id']))
+            except (TypeError, ValueError):
+                configured = None
         if isinstance(configured, discord.TextChannel):
             channel = configured
         ends_at = time.time() + duration
@@ -76,7 +81,11 @@ class Giveaways(commands.Cog):
             except discord.HTTPException:
                 return None
             return []
-        winners = random.sample(users, min(row['winners'], len(users)))
+        try:
+            winner_count = max(1, min(int(row['winners']), len(users)))
+        except (TypeError, ValueError):
+            winner_count = 1
+        winners = random.sample(users, winner_count)
         mentions = ', '.join(user.mention for user in winners)
         try:
             await channel.send(f'🎉 مبروك {mentions}! فزتوا بـ **{row["prize"]}**!')
