@@ -30,18 +30,18 @@ class Utility(commands.Cog):
             groups.setdefault(cog_name, []).append(command)
 
         embed = discord.Embed(
-            title=f'🔥 {BOT_NAME} — الأوامر العامة',
-            description='الأوامر التي يمكن للأعضاء العاديين استخدامها.',
+            title=f'🔥 {BOT_NAME}  •  مركز الأوامر',
+            description='كل الأوامر المتاحة لك، مرتبة حسب النظام. استخدم `!مساعدة الأمر <الأمر>` لمعرفة الاستخدام.',
             color=discord.Color.blurple()
         )
         for cog_name, commands_list in groups.items():
-            names = [f'`!{display_command_name(command.name)}`' for command in commands_list]
+            names = [f'**`!{display_command_name(command.name)}`**' for command in commands_list]
             if names:
-                embed.add_field(name=f'📂 {cog_name}', value=' '.join(names)[:1024], inline=False)
+                embed.add_field(name=f'▸ {cog_name}  ·  {len(commands_list)}', value=' '.join(names)[:1024], inline=False)
 
         if not groups:
             embed.description = 'لا توجد أوامر عامة حاليًا.'
-        embed.set_footer(text=f'{BOT_NAME} • أوامر الإدارة: !اوامر الادارة')
+        embed.set_footer(text=f'{BOT_NAME} • {sum(len(v) for v in groups.values())} أمر • !مساعدة الأمر <الأمر> للتفاصيل')
         await ctx.reply(embed=embed)
 
     @commands.command(name='اوامر_الادارة')
@@ -58,8 +58,8 @@ class Utility(commands.Cog):
             groups.setdefault(cog_name, []).append(command)
 
         embed = discord.Embed(
-            title=f'🛡️ {BOT_NAME} — أوامر الإدارة',
-            description='هذه القائمة متاحة للإداريين فقط.',
+            title=f'🛡️ {BOT_NAME}  •  مركز الإدارة',
+            description='الأوامر الإدارية المتاحة حسب صلاحياتك. استخدم `!مساعدة الأمر <الأمر>` للتفاصيل.',
             color=discord.Color.red()
         )
         for cog_name, commands_list in groups.items():
@@ -79,7 +79,7 @@ class Utility(commands.Cog):
                 continue
             cog_name = command.cog_name or 'Other'
             groups.setdefault(cog_name, []).append(command.name)
-        embed = discord.Embed(title=f'🔥 {BOT_NAME} — الأوامر العامة', color=discord.Color.blurple())
+        embed = discord.Embed(title=f'🔥 {BOT_NAME}  •  مركز الأوامر', description='كل الأوامر متاحة من هنا بشكل مرتب.', color=discord.Color.from_rgb(139, 92, 246))
         for cog_name, names in groups.items():
             display_names = [display_command_name(n) for n in names]
             embed.add_field(name=f'📂 {cog_name}', value=' '.join(f'`!{n}`' for n in display_names)[:1024], inline=False)
