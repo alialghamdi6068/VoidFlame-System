@@ -18,35 +18,37 @@ SYSTEMS = {
 def logged_in(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        if not session.get('user') or not discord_token(): return redirect(url_for('login'))
+        if not session.get('user') or not discord_token():
+            return redirect(url_for('login'))
         return fn(*args, **kwargs)
     return wrapper
 
 
 def can_manage_guild(guild):
     user_id = (session.get('user') or {}).get('id')
-    if not user_id or not guild: return False
-    try: user_id = int(user_id)
-    except (TypeError, ValueError): return False
-    # Discord OAuth guild permissions are the authoritative authorization source.
-    # Do not trust the bot's member cache: it can be stale after a user loses access.
+    if not user_id or not guild:
+        return False
+    try:
+        user_id = int(user_id)
+    except (TypeError, ValueError):
+        return False
     return guild.id in managed_guild_ids()
 
 
 def manageable_guilds(bot):
     """Return every guild the logged-in user can manage, even when the bot is absent."""
     token = discord_token()
-    if not token: return []
+    if not token:
+        return []
     try:
         response = requests.get(
             'https://discord.com/api/v10/users/@me/guilds',
             headers={'Authorization': f'Bearer {token}'},
             timeout=15,
         )
-        if response.status_code != 200: return []
+        if response.status_code != 200:
+            return []
 
-        # The gateway cache can briefly be empty during startup/reconnect. Wait
-        # for readiness before deciding that a managed server has no bot.
         ready_wait_deadline = time.time() + 15
         while not bot.is_ready() and time.time() < ready_wait_deadline:
             time.sleep(0.25)
@@ -83,9 +85,6 @@ def manageable_guilds(bot):
 
 
 def require_guild(guild_id, bot):
-    # Flask serves requests from a separate thread while discord.py owns the
-    # gateway cache. During startup/reconnect the cache can be empty briefly.
-    # Wait for readiness first, then give the cache a bounded window to settle.
     ready_wait_deadline = time.time() + 15
     while not bot.is_ready() and time.time() < ready_wait_deadline:
         time.sleep(0.25)
@@ -93,6 +92,7 @@ def require_guild(guild_id, bot):
         guild_id = int(guild_id)
     except (TypeError, ValueError):
         abort(404)
+
     guild = None
     for _ in range(40):
         try:
@@ -102,6 +102,7 @@ def require_guild(guild_id, bot):
         except Exception:
             pass
         time.sleep(0.25)
+
     if not guild:
         abort(404, description='البوت غير موجود في هذا السيرفر. أضف VoidFlame أولًا ثم افتح لوحة التحكم.')
     if not can_manage_guild(guild):
@@ -114,8 +115,6 @@ def register_dashboard(app, bot):
     def home():
         if request.args.get('code') and request.args.get('state'):
             return redirect(url_for('callback', code=request.args['code'], state=request.args['state']))
-        # The landing page is always the public home page. The Start button
-        # decides whether to open the user's servers or Discord OAuth login.
         return render_template('index.html', logged_in=bool(session.get('user') and discord_token()))
 
     @app.get('/servers')
@@ -136,28 +135,58 @@ def register_dashboard(app, bot):
     def dashboard(guild_id):
         guild = require_guild(guild_id, bot)
         with connection() as conn:
-            activity_count = conn.execute('SELECT COUNT(*) c FROM activity WHERE guild_id=?', (guild_id,)).fetchone()['c']
-            member_levels = conn.execute('SELECT COUNT(*) c FROM levels WHERE guild_id=?', (guild_id,)).fetchone()['c']
-        return render_template('dashboard.html', user=session['user'], guild=guild, settings=get_guild_data(guild_id), systems=SYSTEMS, activity_count=activity_count, member_levels=member_levels)
+            activity_count = conn.execute(
+                'SELECT COUNT(*) c FROM activity WHERE guild_id=?', (guild_id,)
+            ).fetchone()['c']
+            member_levels = conn.execute(
+                'SELECT COUNT(*) c FROM levels WHERE guild_id=?', (guild_id,)
+            ).fetchone()['c']
+        return render_template(
+            'dashboard.html',
+            user=session['user'],
+            guild=guild,
+            settings=get_guild_data(guild_id),
+            systems=SYSTEMS,
+            activity_count=activity_count,
+            member_levels=member_levels,
+        )
 
     @app.get('/dashboard/<int:guild_id>/settings')
     @logged_in
-    def settings(guild_id): return redirect(url_for('system_page', guild_id=guild_id, system='welcome'))
+    def settings(guild_id):
+        return redirect(url_for('system_page', guild_id=guild_id, system='welcome'))
 
     @app.get('/dashboard/<int:guild_id>/system/<system>')
     @logged_in
     def system_page(guild_id, system):
         guild = require_guild(guild_id, bot)
-        if system not in SYSTEMS: abort(404)
+        if system not in SYSTEMS:
+            abort(404)
         import discord
         channels = [c for c in guild.channels if isinstance(c, discord.TextChannel)]
-        return render_template('system.html', user=session['user'], guild=guild, settings=get_guild_data(guild_id), channels=channels, categories=list(guild.categories), roles=guild.roles, systems=SYSTEMS, current_system=system, system_title=SYSTEMS[system][0], system_icon=SYSTEMS[system][1])
+        return render_template(
+            'system.html',
+            user=session['user'],
+            guild=guild,
+            settings=get_guild_data(guild_id),
+            channels=channels,
+            categories=list(guild.categories),
+            roles=guild.roles,
+            systems=SYSTEMS,
+            current_system=system,
+            system_title=SYSTEMS[system][0],
+            system_icon=SYSTEMS[system][1],
+        )
 
     @app.get('/dashboard/<int:guild_id>/activity')
     @logged_in
     def activity(guild_id):
         guild = require_guild(guild_id, bot)
-        with connection() as conn: rows = conn.execute('SELECT * FROM activity WHERE guild_id=? ORDER BY id DESC LIMIT 100', (guild_id,)).fetchall()
+        with connection() as conn:
+            rows = conn.execute(
+                'SELECT * FROM activity WHERE guild_id=? ORDER BY id DESC LIMIT 100',
+                (guild_id,),
+            ).fetchall()
         return render_template('activity.html', user=session['user'], guild=guild, rows=rows)
 
     @app.get('/dashboard/<int:guild_id>/commands')
@@ -169,11 +198,14 @@ def register_dashboard(app, bot):
             if command.hidden or command.name in {'help', 'مساعدة', 'اوامر', 'اوامر_الادارة'}:
                 continue
             groups.setdefault(command.cog_name or 'أخرى', []).append(command)
-        for commands_list in groups.values():
-            commands_list.sort(key=lambda command: command.name)
-        return render_template('commands.html', user=session['user'], guild=guild, command_groups=groups)
 
-    @logged_in
-    def commands_page(guild_id):
-        guild = require_guild(guild_id, bot)
-        return render_template('commands.html', user=session['user'], guild=guild)
+        for commands_list in groups.values():
+            commands_list.sort(key=lambda command: command.name.casefold())
+
+        return render_template(
+            'commands.html',
+            user=session['user'],
+            guild=guild,
+            command_groups=groups,
+            command_count=sum(len(commands_list) for commands_list in groups.values()),
+        )
