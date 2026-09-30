@@ -192,9 +192,13 @@ async def load_cogs():
         print(f"[{BOT_NAME}] Failed to load cogs.maintenance: {type(exc).__name__}: {exc}")
         return False
 
-    # Always load the systems first. If maintenance was enabled before the last
-    # restart, we unload them after loading so the owner can still run !صيانة
-    # and disable maintenance without manually editing the database.
+    # Do not load the full bot while maintenance is already enabled.
+    # This keeps memory/CPU usage low across restarts; only the maintenance
+    # controller remains loaded so the owner can disable maintenance.
+    if is_maintenance():
+        print(f"[{BOT_NAME}] Maintenance is active; system cogs will not be loaded.")
+        return True
+
     for name in SYSTEM_COGS:
         try:
             await bot.load_extension(f"cogs.{name}")
@@ -205,12 +209,6 @@ async def load_cogs():
             print(f"[{BOT_NAME}] Command collision in cogs.{name}: {exc}")
         except Exception as exc:
             print(f"[{BOT_NAME}] Failed to load cogs.{name}: {type(exc).__name__}: {exc}")
-
-    if is_maintenance():
-        maintenance = bot.get_cog("Maintenance")
-        if maintenance:
-            unloaded = await maintenance._disable_all_systems()
-            print(f"[{BOT_NAME}] Maintenance active; unloaded {len(unloaded)} systems.")
 
     return True
 
