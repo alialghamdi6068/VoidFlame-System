@@ -29,10 +29,18 @@ class Reminders(commands.Cog):
                 with connection() as conn:
                     conn.execute('UPDATE reminders SET sent=0 WHERE id=? AND sent=1', (row['id'],))
                 continue
-            user=self.bot.get_user(row['user_id'])
+            try:
+                user_id = int(row['user_id'])
+                guild_id = int(row['guild_id'])
+                source_channel_id = int(row['channel_id'])
+            except (TypeError, ValueError):
+                with connection() as conn:
+                    conn.execute('UPDATE reminders SET sent=1 WHERE id=?', (row['id'],))
+                continue
+            user=self.bot.get_user(user_id)
             if not user:
                 try:
-                    user=await self.bot.fetch_user(row['user_id'])
+                    user=await self.bot.fetch_user(user_id)
                 except (discord.NotFound, discord.HTTPException):
                     with connection() as conn:
                         conn.execute('UPDATE reminders SET sent=0 WHERE id=?',(row['id'],))
