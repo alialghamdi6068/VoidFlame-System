@@ -27,12 +27,22 @@ class Scheduler(commands.Cog):
                 with connection() as conn:
                     conn.execute('UPDATE schedules SET sent=0 WHERE id=? AND sent=1', (row['id'],))
                 continue
-            channel=self.bot.get_channel(row['channel_id'])
-            guild=self.bot.get_guild(row['guild_id'])
+            try:
+                channel_id = int(row['channel_id'])
+                guild_id = int(row['guild_id'])
+            except (TypeError, ValueError):
+                with connection() as conn:
+                    conn.execute('UPDATE schedules SET sent=1 WHERE id=?', (row['id'],))
+                continue
+            channel=self.bot.get_channel(channel_id)
+            guild=self.bot.get_guild(guild_id)
             if guild:
                 configured=get_guild_data(guild.id).get('scheduler_channel_id')
                 if configured:
-                    channel=guild.get_channel(int(configured))
+                    try:
+                        channel=guild.get_channel(int(configured))
+                    except (TypeError, ValueError):
+                        pass
             delivered=False
             if isinstance(channel,discord.TextChannel):
                 try:
