@@ -10,7 +10,7 @@ DISCORD_API = 'https://discord.com/api/v10'
 
 def _managed_guilds_from_token(token):
     if not token:
-        return set()
+        return None
     try:
         response = requests.get(
             f'{DISCORD_API}/users/@me/guilds',
@@ -18,7 +18,7 @@ def _managed_guilds_from_token(token):
             timeout=15,
         )
         if response.status_code != 200:
-            return set()
+            return None
         allowed = set()
         for guild in response.json():
             try:
@@ -32,7 +32,7 @@ def _managed_guilds_from_token(token):
                     continue
         return allowed
     except (requests.RequestException, ValueError, TypeError):
-        return set()
+        return None
 
 
 def _refresh_access_token():
@@ -188,7 +188,7 @@ def managed_guild_ids():
     token = discord_token()
     if token:
         current = _managed_guilds_from_token(token)
-        if current:
+        if current is not None:
             session['managed_guild_ids'] = sorted(current)
             return current
     cached = session.get('managed_guild_ids')
