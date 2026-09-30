@@ -68,8 +68,13 @@ class Levels(commands.Cog):
                 "WHERE guild_id=? AND user_id=?",
                 (message.guild.id, message.author.id),
             ).fetchone()
-            if row and now - row["last_message"] < cooldown:
-                return
+            if row:
+                try:
+                    last_message = float(row["last_message"] or 0)
+                except (TypeError, ValueError):
+                    last_message = 0
+                if now - last_message < cooldown:
+                    return
 
             xp = (row["xp"] if row else 0) + random.randint(minimum, maximum)
             level = row["level"] if row else 0
