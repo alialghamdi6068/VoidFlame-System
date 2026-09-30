@@ -16,11 +16,11 @@ class AutoReply(commands.Cog):
         if channel_id and message.channel.id != int(channel_id):
             return
         replies=settings.get('autoreplies',{})
-        text=message.content.strip()
+        text=message.content
         for trigger,response in replies.items():
             # Automatic replies are exact-match only. A trigger must equal the
             # entire message after trimming surrounding whitespace.
-            if text.casefold() == str(trigger).strip().casefold():
+            if text == str(trigger):
                 try:
                     await message.channel.send(str(response)[:2000],allowed_mentions=discord.AllowedMentions.none())
                 except (discord.Forbidden,discord.HTTPException):
