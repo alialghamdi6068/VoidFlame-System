@@ -109,25 +109,41 @@ CREATE TABLE IF NOT EXISTS warning_history (
     reason TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
 CREATE INDEX IF NOT EXISTS idx_activity_guild_created ON activity(guild_id,created_at);
 CREATE INDEX IF NOT EXISTS idx_warnings_guild_user_created ON warnings(guild_id,user_id,created_at);
+CREATE INDEX IF NOT EXISTS idx_warning_history_guild_user_created ON warning_history(guild_id,user_id,created_at);
+CREATE INDEX IF NOT EXISTS idx_tickets_guild_status ON tickets(guild_id,status);
+CREATE INDEX IF NOT EXISTS idx_tickets_user_status ON tickets(guild_id,user_id,status);
+CREATE INDEX IF NOT EXISTS idx_giveaways_active ON giveaways(guild_id,ended,ends_at);
+CREATE INDEX IF NOT EXISTS idx_reminders_pending ON reminders(user_id,sent,due_at);
+CREATE INDEX IF NOT EXISTS idx_schedules_pending ON schedules(guild_id,sent,due_at);
+CREATE INDEX IF NOT EXISTS idx_applications_guild_status ON applications(guild_id,status,created_at);
+CREATE INDEX IF NOT EXISTS idx_suggestions_guild_status ON suggestions(guild_id,status,created_at);
 """
+
+
+def _configure_connection(conn):
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA busy_timeout=30000")
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute("PRAGMA synchronous=NORMAL")
 
 
 def init_db():
     with sqlite3.connect(DATABASE_PATH, timeout=30) as conn:
+        _configure_connection(conn)
         conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=30000")
         conn.executescript(SCHEMA)
 
-        columns = {row[1] for row in conn.execute("PRAGMA table_info(tickets)").fetchall()}
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(tickets)").fetchall()}
         if "ticket_number" not in columns:
             conn.execute("ALTER TABLE tickets ADD COLUMN ticket_number INTEGER")
         if "claimed_by" not in columns:
             conn.execute("ALTER TABLE tickets ADD COLUMN claimed_by INTEGER")
 
         guild_ids = [
-            row[0] for row in conn.execute(
+            row["guild_id"] for row in conn.execute(
                 "SELECT DISTINCT guild_id FROM tickets"
             ).fetchall()
         ]
@@ -147,11 +163,9 @@ def init_db():
                 next_number += 1
                 conn.execute(
                     "UPDATE tickets SET ticket_number=? WHERE id=?",
-                    (next_number, row[0]),
+                    (next_number, row["id"]),
                 )
 
-        # Keep at most one open ticket per member in each server before
-        # creating the partial unique index used by the runtime.
         duplicates = conn.execute(
             """
             SELECT guild_id, user_id
@@ -173,7 +187,7 @@ def init_db():
             for row in rows[1:]:
                 conn.execute(
                     "UPDATE tickets SET status='closed', closed_at=CURRENT_TIMESTAMP WHERE id=?",
-                    (row[0],),
+                    (row["id"],),
                 )
 
         conn.execute(
@@ -189,8 +203,7 @@ def init_db():
 @contextmanager
 def connection():
     conn = sqlite3.connect(DATABASE_PATH, timeout=30)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA busy_timeout=30000")
+    _configure_connection(conn)
     try:
         yield conn
         conn.commit()
@@ -207,19 +220,27 @@ def get_guild_data(guild_id):
             "SELECT data FROM guild_settings WHERE guild_id=?",
             (guild_id,),
         ).fetchone()
-        return json.loads(row["data"]) if row else {}
+        if not row:
+            return {}
+        try:
+            data = json.loads(row["data"])
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return {}
+        return data if isinstance(data, dict) else {}
 
 
 def set_guild_data(guild_id, data):
     guild_id = int(guild_id)
+    if not isinstance(data, dict):
+        raise TypeError("guild data must be a dictionary")
+
     with connection() as conn:
         conn.execute(
             "INSERT INTO guild_settings(guild_id,data) VALUES(?,?) "
             "ON CONFLICT(guild_id) DO UPDATE SET data=excluded.data",
             (guild_id, json.dumps(data, ensure_ascii=False)),
         )
-    # Keep every write path consistent, including callers that use set_guild_data
-    # directly instead of update_guild_data.
+
     try:
         from services.settings_cache import settings_cache
         settings_cache.invalidate(guild_id)
@@ -236,7 +257,18 @@ def update_guild_data(guild_id, **changes):
             "SELECT data FROM guild_settings WHERE guild_id=?",
             (guild_id,),
         ).fetchone()
-        data = json.loads(row["data"]) if row else {}
+
+        if row:
+            try:
+                data = json.loads(row["data"])
+            except (TypeError, ValueError, json.JSONDecodeError):
+                data = {}
+        else:
+            data = {}
+
+        if not isinstance(data, dict):
+            data = {}
+
         data.update(changes)
         encoded = json.dumps(data, ensure_ascii=False)
         conn.execute(
@@ -244,6 +276,7 @@ def update_guild_data(guild_id, **changes):
             "ON CONFLICT(guild_id) DO UPDATE SET data=excluded.data",
             (guild_id, encoded),
         )
+
     try:
         from services.settings_cache import settings_cache
         settings_cache.invalidate(guild_id)
