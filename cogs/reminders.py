@@ -50,9 +50,13 @@ class Reminders(commands.Cog):
                 await user.send(f'⏰ **تذكيرك:**\n{row["text"]}')
                 delivered=True
             except (discord.Forbidden, discord.HTTPException):
-                settings=get_guild_data(row['guild_id'])
+                settings=get_guild_data(guild_id)
                 configured=settings.get('reminder_channel_id')
-                channel=self.bot.get_channel(int(configured)) if configured else self.bot.get_channel(row['channel_id'])
+                try:
+                    configured_id = int(configured) if configured else source_channel_id
+                except (TypeError, ValueError):
+                    configured_id = source_channel_id
+                channel=self.bot.get_channel(configured_id)
                 if isinstance(channel,discord.TextChannel):
                     try:
                         await channel.send(f'⏰ {user.mention} تذكيرك: {row["text"]}',allowed_mentions=discord.AllowedMentions(users=True))
