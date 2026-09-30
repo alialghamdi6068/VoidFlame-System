@@ -1,1 +1,21 @@
-{% extends 'base.html' %}{% block content %}<div class="page-head"><div><div class="eyebrow">COMMANDS</div><h1>⌘ أوامر Flame</h1><p>الأوامر الفعلية الموجودة في البوت. الأسماء المعروضة للمستخدم بدون underscores.</p></div></div><div class="grid"><div class="card"><h3>🛡️ الإدارة</h3><p><code>!باند</code> <code>!طرد</code> <code>!تايم</code> <code>!فك تايم</code> <code>!تحذير</code> <code>!تحذيرات</code> <code>!مسح تحذيرات</code> <code>!مسح</code> <code>!قفل</code> <code>!فتح</code> <code>!قفل روم</code> <code>!فتح روم</code> <code>!تثبيت</code> <code>!اعلان</code></p></div><div class="card"><h3>🎫 التذاكر</h3><p><code>!تكت</code> <code>!تذكرة</code> <code>!استلام</code> <code>!اغلاق</code> <code>!اضافة</code> <code>!ازالة</code></p></div><div class="card"><h3>⚙️ أساسي</h3><p><code>!بينج</code> <code>!اوامر</code> <code>!اوامر الادارة</code> <code>!صيانة</code></p></div><div class="card"><h3>💬 الرسائل</h3><p><code>!قول</code> <code>!dm</code> <code>!رد</code> <code>!حذف رد</code></p></div><div class="card"><h3>📈 الأنظمة</h3><p><code>!لفل</code> <code>!توب</code> <code>!اقتراح</code> <code>!قيفاواي</code> <code>!غياب</code> <code>!تذكير</code> <code>!جدولة</code> <code>!تقديم</code></p></div></div>{% endblock %}
+{% extends 'base.html' %}{% block content %}
+<div class="page-head"><div><div class="eyebrow">COMMAND CENTER</div><h1>⌘ مركز أوامر VoidFlame</h1><p>هذه القائمة تُبنى مباشرة من الأوامر المسجلة في البوت، لذلك تبقى محدثة تلقائيًا.</p></div></div>
+<div class="grid">
+{% for cog_name, commands in command_groups.items() %}
+<div class="card command-card"><h3>▸ {{ cog_name }} <span class="command-count">{{ commands|length }}</span></h3>
+<div class="command-list">
+{% for command in commands %}
+<div class="command-item"><code>!{{ command.name|replace('_',' ') }}{% if command.signature %} {{ command.signature }}{% endif %}</code><span>{{ (command.help or command.description or 'بدون وصف').split('\n')[0][:110] }}</span></div>
+{% endfor %}
+</div></div>
+{% else %}
+<div class="card"><h3>لا توجد أوامر</h3><p>لم يتم تسجيل أي أمر حاليًا.</p></div>
+{% endfor %}
+</div>
+<style>
+.command-card{transition:transform .18s ease,border-color .18s ease}.command-card:hover{transform:translateY(-2px)}
+.command-card h3{display:flex;align-items:center;gap:9px}.command-count{margin-right:auto;font-size:11px;padding:4px 9px;border-radius:999px;background:rgba(139,92,246,.12);color:#c4b5fd;border:1px solid rgba(139,92,246,.22)}
+.command-list{display:grid;gap:8px}.command-item{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border:1px solid rgba(255,255,255,.06);border-radius:11px;background:rgba(255,255,255,.025)}
+.command-item code{direction:ltr;text-align:left;color:#d8b4fe;font-weight:800}.command-item span{font-size:11px;color:#8f8498}
+</style>
+{% endblock %}
