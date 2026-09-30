@@ -5,3 +5,6 @@
 *.db
 *.sqlite
 *.sqlite3
+
+config.json
+data/session.secret
