@@ -35,7 +35,7 @@ async function addSystemToggle(){
   if(!field||form.querySelector(`[name="${field}"]`))return;
   const wrap=document.createElement('section');
   wrap.className='panel system-toggle-panel';
-  wrap.innerHTML=`<div class="form-grid"><label class="check"><input type="checkbox" name="${field}" checked> تفعيل نظام ${SYSTEM_NAMES[system]}</label></div>`;
+  wrap.innerHTML=`<div class="form-grid"><label class="check"><input type="checkbox" name="${field}" ${system==='autoreply'?'':'checked'}> تفعيل نظام ${SYSTEM_NAMES[system]}</label></div>`;
   form.prepend(wrap);
   try{
     const guildId=String(window.FLAME_GUILD||'').trim();
