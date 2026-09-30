@@ -1,6 +1,6 @@
 from flask import Flask, Response, render_template, request, session
 from werkzeug.middleware.proxy_fix import ProxyFix
-from config import SESSION_SECRET
+from config import SESSION_SECRET, COOKIE_SECURE
 from web.security import csrf_token, rate_limit
 
 
@@ -10,7 +10,7 @@ def create_app(bot):
     app.config.update(
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE='Lax',
-        SESSION_COOKIE_SECURE=True,
+        SESSION_COOKIE_SECURE=COOKIE_SECURE,
         MAX_CONTENT_LENGTH=256 * 1024,
         PROPAGATE_EXCEPTIONS=False,
     )
