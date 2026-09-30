@@ -159,7 +159,8 @@ def register_auth(app, bot):
 
 
 def discord_token():
-    oauth = session.get('oauth') or {}
+    data = _oauth_data() or {}
+    oauth = data.get('oauth') or {}
     token = oauth.get('access_token')
     try:
         expires_at = float(oauth.get('expires_at', 0))
