@@ -1,5 +1,10 @@
 import json
 import sqlite3
+import shutil
+import threading
+import time
+from datetime import datetime, timezone
+from pathlib import Path
 from contextlib import contextmanager
 
 from config import DATABASE_PATH
@@ -130,7 +135,113 @@ def _configure_connection(conn):
     conn.execute("PRAGMA synchronous=NORMAL")
 
 
+BACKUP_DIR = DATABASE_PATH.parent / "backups"
+BACKUP_INTERVAL_SECONDS = 30 * 60
+BACKUP_KEEP = 10
+_backup_thread_started = False
+_backup_lock = threading.Lock()
+
+
+def _valid_database(path):
+    path = Path(path)
+    if not path.exists() or path.stat().st_size < 4096:
+        return False
+    try:
+        with sqlite3.connect(path, timeout=5) as conn:
+            row = conn.execute("PRAGMA integrity_check").fetchone()
+            return bool(row and row[0] == "ok")
+    except (OSError, sqlite3.DatabaseError):
+        return False
+
+
+def recover_database():
+    """Recover a missing/corrupt runtime DB from a local backup or legacy location.
+
+    Never overwrites a healthy database. This is intentionally local because the
+    hosting provider's filesystem is where the live SQLite data exists.
+    """
+    DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    if _valid_database(DATABASE_PATH):
+        return False
+
+    candidates = []
+    for path in sorted(BACKUP_DIR.glob("*.db"), key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True):
+        candidates.append(path)
+    legacy = [
+        DATABASE_PATH.parent / "database.db",
+        DATABASE_PATH.parent / "flame.db.bak",
+        DATABASE_PATH.parent.parent / "flame.db",
+        DATABASE_PATH.parent.parent / "database.db",
+    ]
+    candidates.extend(path for path in legacy if path.exists())
+
+    for source in candidates:
+        if source.resolve() == DATABASE_PATH.resolve() or not _valid_database(source):
+            continue
+        try:
+            shutil.copy2(source, DATABASE_PATH)
+            if _valid_database(DATABASE_PATH):
+                print(f"[VoidFlame] Database recovered from {source}")
+                return True
+        except (OSError, sqlite3.DatabaseError) as exc:
+            print(f"[VoidFlame] Database recovery skipped for {source}: {type(exc).__name__}: {exc}")
+            try:
+                DATABASE_PATH.unlink(missing_ok=True)
+            except OSError:
+                pass
+    return False
+
+
+def backup_database():
+    """Create a consistent SQLite backup without stopping the bot."""
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    if not _valid_database(DATABASE_PATH):
+        return None
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    target = BACKUP_DIR / f"flame-{stamp}.db"
+    temp = BACKUP_DIR / f".{target.name}.tmp"
+    try:
+        with _backup_lock:
+            with sqlite3.connect(DATABASE_PATH, timeout=30) as source, sqlite3.connect(temp, timeout=30) as destination:
+                source.backup(destination)
+                destination.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+                destination.commit()
+            temp.replace(target)
+        backups = sorted(BACKUP_DIR.glob("flame-*.db"), key=lambda p: p.stat().st_mtime, reverse=True)
+        for old in backups[BACKUP_KEEP:]:
+            try:
+                old.unlink()
+            except OSError:
+                pass
+        print(f"[VoidFlame] Database backup created: {target.name}")
+        return target
+    except (OSError, sqlite3.DatabaseError) as exc:
+        print(f"[VoidFlame] Database backup failed: {type(exc).__name__}: {exc}")
+        try:
+            temp.unlink(missing_ok=True)
+        except OSError:
+            pass
+        return None
+
+
+def _backup_loop():
+    while True:
+        time.sleep(BACKUP_INTERVAL_SECONDS)
+        backup_database()
+
+
+def start_database_backups():
+    global _backup_thread_started
+    if _backup_thread_started:
+        return
+    _backup_thread_started = True
+    backup_database()
+    threading.Thread(target=_backup_loop, daemon=True, name="voidflame-db-backup").start()
+
+
 def init_db():
+    recover_database()
     with sqlite3.connect(DATABASE_PATH, timeout=30) as conn:
         _configure_connection(conn)
         conn.execute("PRAGMA journal_mode=WAL")
