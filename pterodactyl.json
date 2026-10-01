@@ -1,0 +1,6 @@
+{
+  "hosting": "Pterodactyl",
+  "startCommand": "python bot.py",
+  "port": 26583,
+  "entrypoint": "bot.py"
+}
