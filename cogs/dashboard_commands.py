@@ -23,7 +23,7 @@ class DashboardCommands(commands.Cog):
     @commands.guild_only()
     @commands.has_guild_permissions(manage_guild=True)
     async def dashboard_prefix(self, ctx):
-        dashboard_url = os.getenv("DASHBOARD_URL", "").strip() or "http://92.5.125.41:26583/"
+        dashboard_url = os.getenv("DASHBOARD_URL", "").strip() or "https://VoidFlame-System.morgmc.xyz"
         await ctx.reply(f"🌐 **لوحة التحكم:**\n{dashboard_url}", mention_author=False)
 
     @app_commands.command(name="info", description="Show information about the bot")
