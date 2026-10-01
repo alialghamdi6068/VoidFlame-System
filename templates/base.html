@@ -1,31 +1,87 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="csrf-token" content="{{ csrf_token }}">
 <meta name="robots" content="index,follow">
 <meta name="google-site-verification" content="nvzhOt9NdwvJYsTwDhxG-siVuc0tfcO57jEqyzqthMc">
 <title>{{ title or 'VoidFlame System' }}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
 </head>
 <body>
-<div class="glow glow-one"></div><div class="glow glow-two"></div>
-<aside class="sidebar">
-<a class="brand" href="{{ url_for('dashboard', guild_id=guild.id) if guild else url_for('servers') }}"><span>🔥</span><div>VoidFlame<small>System</small></div></a>
-{% if guild %}<div class="server-mini"><span>{{ guild.name[:1] }}</span><div>{{ guild.name }}<small>{{ guild.member_count or 0 }} عضو</small></div></div>
-<nav><a href="{{ url_for('dashboard', guild_id=guild.id) }}">⌂ <span>الرئيسية</span></a><div class="nav-label">الأنظمة</div>{% for key,info in (systems or {}).items() %}<a class="system-nav-link" href="{{ url_for('system_page', guild_id=guild.id, system=key) }}">{{ info[1] }} <span>{{ info[0] }}</span></a>{% endfor %}<a href="{{ url_for('commands_page', guild_id=guild.id) }}">⌘ <span>الأوامر</span></a><a href="{{ url_for('activity', guild_id=guild.id) }}">◷ <span>النشاط واللوق</span></a></nav>{% endif %}
-<div class="sidebar-bottom"><a href="{{ url_for('servers') }}">◈ <span>السيرفرات</span></a><form method="post" action="{{ url_for('logout') }}" style="display:inline"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit" class="sidebar-link-button">↪ <span>تسجيل الخروج</span></button></form></div>
-</aside><main class="main"><header class="mobile-head"><a class="brand" href="{{ url_for('servers') }}"><span>🔥</span><div>VoidFlame</div></a></header>{% block content %}{% endblock %}
-{% if current_system %}
-{% set variable_groups = {
-'welcome': [('{' ~ 'member' ~ '}', 'منشن العضو الجديد'), ('{' ~ 'username' ~ '}', 'اسم العضو'), ('{' ~ 'server' ~ '}', 'اسم السيرفر'), ('{' ~ 'members' ~ '}', 'عدد أعضاء السيرفر'), ('{' ~ 'inviter' ~ '}', 'منشن الشخص الذي دعا العضو'), ('{' ~ 'count' ~ '}', 'عدد الأعضاء — متوافق مع الإصدارات القديمة')],
-'tickets': [('{' ~ 'member' ~ '}', 'منشن صاحب التذكرة'), ('{' ~ 'username' ~ '}', 'اسم صاحب التذكرة'), ('{' ~ 'server' ~ '}', 'اسم السيرفر'), ('{' ~ 'ticket' ~ '}', 'رقم التذكرة'), ('{' ~ 'category' ~ '}', 'قسم التذكرة'), ('{' ~ 'support' ~ '}', 'رتبة الدعم')]
-} %}
-{% set variables = variable_groups.get(current_system, []) %}
-{% if variables %}
-<section class="panel" style="margin-top:18px"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><h2 style="margin:0">📌 المتغيرات</h2><p style="margin:6px 0 0;opacity:.72">استخدم هذه المتغيرات داخل رسائل {{ system_title }}. اضغط على المتغير لنسخه.</p></div></div>
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:16px">{% for variable, description in variables %}<button type="button" class="variable-copy" data-variable="{{ variable }}" style="display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:12px 14px;border:1px solid rgba(255,255,255,.09);border-radius:12px;background:rgba(255,255,255,.035);color:inherit;cursor:pointer;text-align:right"><span><strong style="direction:ltr;unicode-bidi:embed">{{ variable }}</strong><small style="display:block;margin-top:4px;opacity:.65">{{ description }}</small></span><span class="copy-state" style="opacity:.6">نسخ</span></button>{% endfor %}</div></section>
-<script>document.querySelectorAll('.variable-copy').forEach(function(button){button.addEventListener('click',async function(){const value=this.dataset.variable;try{await navigator.clipboard.writeText(value);}catch(e){const area=document.createElement('textarea');area.value=value;document.body.appendChild(area);area.select();document.execCommand('copy');area.remove();}const state=this.querySelector('.copy-state');if(state){const old=state.textContent;state.textContent='✓ تم النسخ';setTimeout(()=>state.textContent=old,1200);}});});</script>
-{% endif %}{% endif %}
-</main></body></html>
+<div class="page-noise"></div>
+<div class="ambient ambient-a"></div><div class="ambient ambient-b"></div>
+<div class="scroll-progress" id="scroll-progress"></div>
+<div class="mobile-overlay" id="mobile-overlay"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-top">
+    <a class="brand" href="{{ url_for('dashboard', guild_id=guild.id) if guild else url_for('servers') }}">
+      <span class="brand-mark">VF</span>
+      <span class="brand-copy"><strong>VoidFlame</strong><small>System Control</small></span>
+    </a>
+    {% if guild %}
+    <div class="server-mini">
+      <span class="server-mini-icon">{{ guild.name[:1] }}</span>
+      <span class="server-mini-copy"><strong>{{ guild.name }}</strong><small>{{ guild.member_count or 0 }} عضو</small></span>
+      <span class="server-dot"></span>
+    </div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" href="{{ url_for('dashboard', guild_id=guild.id) }}"><span class="nav-icon">⌂</span><span>الرئيسية</span></a>
+      <div class="nav-label">الأنظمة</div>
+      {% for key,info in (systems or {}).items() %}
+      <a class="nav-item system-nav-link" href="{{ url_for('system_page', guild_id=guild.id, system=key) }}"><span class="nav-icon">{{ info[1] }}</span><span>{{ info[0] }}</span></a>
+      {% endfor %}
+      <div class="nav-label">الإدارة</div>
+      <a class="nav-item" href="{{ url_for('commands_page', guild_id=guild.id) }}"><span class="nav-icon">⌘</span><span>الأوامر</span></a>
+      <a class="nav-item" href="{{ url_for('activity', guild_id=guild.id) }}"><span class="nav-icon">◷</span><span>النشاط والسجل</span></a>
+    </nav>
+    {% endif %}
+  </div>
+  <div class="sidebar-bottom">
+    <a class="nav-item" href="{{ url_for('servers') }}"><span class="nav-icon">◈</span><span>السيرفرات</span></a>
+    <form method="post" action="{{ url_for('logout') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button type="submit" class="nav-item nav-button"><span class="nav-icon">↪</span><span>تسجيل الخروج</span></button>
+    </form>
+  </div>
+</aside>
+
+<main class="main">
+  <header class="mobile-head">
+    <button class="mobile-menu" id="mobile-menu" type="button" aria-label="فتح القائمة" aria-controls="sidebar" aria-expanded="false">☰</button>
+    <a class="brand" href="{{ url_for('dashboard', guild_id=guild.id) if guild else url_for('servers') }}">
+      <span class="brand-mark">VF</span><span class="brand-copy"><strong>VoidFlame</strong><small>System</small></span>
+    </a>
+    {% if guild %}<a class="mobile-server" href="{{ url_for('servers') }}">{{ guild.name[:1] }}</a>{% endif %}
+  </header>
+
+  <div class="content-shell">
+    {% block content %}{% endblock %}
+
+    {% if current_system %}
+    {% set variable_groups = {
+      'welcome': [('{member}', 'منشن العضو الجديد'), ('{username}', 'اسم العضو'), ('{server}', 'اسم السيرفر'), ('{members}', 'عدد أعضاء السيرفر'), ('{inviter}', 'منشن الشخص الذي دعا العضو'), ('{count}', 'عدد الأعضاء — متوافق مع الإصدارات القديمة')],
+      'tickets': [('{member}', 'منشن صاحب التذكرة'), ('{username}', 'اسم صاحب التذكرة'), ('{server}', 'اسم السيرفر'), ('{ticket}', 'رقم التذكرة'), ('{category}', 'قسم التذكرة'), ('{support}', 'رتبة الدعم')]
+    } %}
+    {% set variables = variable_groups.get(current_system, []) %}
+    {% if variables %}
+    <section class="panel variable-panel">
+      <div class="panel-head"><div><span class="panel-kicker">QUICK INSERT</span><h2>المتغيرات</h2><p>اضغط على أي متغير لنسخه واستخدامه داخل رسائل {{ system_title }}.</p></div></div>
+      <div class="variable-grid">
+        {% for variable, description in variables %}
+        <button type="button" class="variable-copy" data-variable="{{ variable }}"><span><strong>{{ variable }}</strong><small>{{ description }}</small></span><span class="copy-state">نسخ</span></button>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+    {% endif %}
+  </div>
+</main>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
