@@ -1,12 +1,44 @@
 {% extends 'base.html' %}{% block content %}
-<div class="page-head"><div><div class="eyebrow">FLAME CONTROL CENTER</div><h1>مرحباً بك في لوحة التحكم 🟣</h1><p>تحكم كامل في البوت والسيرفر من مكان واحد.</p></div><a class="outline-btn" href="{{ url_for('servers') }}">تغيير السيرفر</a></div>
-<div class="hero-card"><div><span class="pill">● متصل</span><h2>{{ guild.name }}</h2><p>Flame يعمل حالياً على هذا السيرفر.</p></div><div class="hero-orb">🔥</div></div>
-<div class="stats"><div class="stat"><span>الأعضاء</span><b>{{ guild.member_count or 0 }}</b><small>في السيرفر</small></div><div class="stat"><span>النشاط</span><b>{{ activity_count }}</b><small>عملية مسجلة</small></div><div class="stat"><span>المستويات</span><b>{{ member_levels }}</b><small>حساب XP</small></div></div>
-<div class="section-title"><h2>التحكم السريع</h2><span>إعدادات حقيقية مرتبطة بالبوت</span></div>
-<div class="feature-grid">
-<a class="feature" href="{{ url_for('settings', guild_id=guild.id) }}"><i>⚙</i><div><b>إعدادات السيرفر</b><small>الرومات، الترحيب، المستويات والأنظمة</small></div><strong>←</strong></a>
-<a class="feature" href="{{ url_for('settings', guild_id=guild.id) }}#tickets"><i>🎫</i><div><b>التذاكر</b><small>قسم التذاكر وإعداداته</small></div><strong>←</strong></a>
-<a class="feature" href="{{ url_for('settings', guild_id=guild.id) }}#autoreply"><i>💬</i><div><b>الردود التلقائية</b><small>كلمة → رد البوت</small></div><strong>←</strong></a>
-<a class="feature" href="{{ url_for('commands_page', guild_id=guild.id) }}"><i>⌘</i><div><b>الأوامر</b><small>جميع أوامر Flame</small></div><strong>←</strong></a>
+<div class="dashboard-topbar">
+  <div>
+    <span class="eyebrow">VOIDFLAME / CONTROL CENTER</span>
+    <h1>نظرة عامة</h1>
+    <p>إدارة البوت والأنظمة من واجهة واحدة سريعة وواضحة.</p>
+  </div>
+  <div class="topbar-actions">
+    <span class="live-badge"><i></i> النظام متصل</span>
+    <a class="ghost-btn" href="{{ url_for('servers') }}">تغيير السيرفر <span>↗</span></a>
+  </div>
 </div>
+
+<section class="overview-hero">
+  <div class="hero-copy">
+    <div class="hero-chip"><span>●</span> ONLINE · {{ guild.name }}</div>
+    <h2>VoidFlame يعمل<br><em>بكل أنظمته.</em></h2>
+    <p>تابع النشاط، الإعدادات، التذاكر، المستويات وباقي الأنظمة بدون التنقل بين صفحات خارجية.</p>
+    <div class="hero-actions">
+      <a class="primary-btn" href="{{ url_for('settings', guild_id=guild.id) }}">فتح الإعدادات <span>←</span></a>
+      <a class="text-btn" href="{{ url_for('activity', guild_id=guild.id) }}">عرض النشاط</a>
+    </div>
+  </div>
+  <div class="hero-visual">
+    <div class="hero-grid"></div><div class="hero-ring ring-one"></div><div class="hero-ring ring-two"></div>
+    <div class="vf-orb"><span>VF</span></div>
+  </div>
+</section>
+
+<section class="metrics-grid">
+  <article class="metric-card"><div class="metric-icon">♟</div><div><span>الأعضاء</span><strong>{{ guild.member_count or 0 }}</strong><small>في السيرفر</small></div></article>
+  <article class="metric-card"><div class="metric-icon">◷</div><div><span>النشاط</span><strong>{{ activity_count }}</strong><small>عملية مسجلة</small></div></article>
+  <article class="metric-card"><div class="metric-icon">✦</div><div><span>المستويات</span><strong>{{ member_levels }}</strong><small>حساب XP</small></div></article>
+  <article class="metric-card accent-metric"><div class="metric-icon">✓</div><div><span>الحالة</span><strong>ONLINE</strong><small>كل شيء يعمل</small></div></article>
+</section>
+
+<div class="section-heading"><div><span class="panel-kicker">FAST ACCESS</span><h2>التحكم السريع</h2></div><span>اختصارات للأنظمة الأكثر استخداماً</span></div>
+<section class="quick-grid">
+  <a class="quick-card" href="{{ url_for('settings', guild_id=guild.id) }}"><span class="quick-number">01</span><span class="quick-icon">⚙</span><div><strong>إعدادات السيرفر</strong><small>الرومات، الترحيب، المستويات والأنظمة</small></div><b>↗</b></a>
+  <a class="quick-card" href="{{ url_for('settings', guild_id=guild.id) }}#tickets"><span class="quick-number">02</span><span class="quick-icon">🎫</span><div><strong>التذاكر</strong><small>إدارة النظام ولوحة فتح التذاكر</small></div><b>↗</b></a>
+  <a class="quick-card" href="{{ url_for('settings', guild_id=guild.id) }}#autoreply"><span class="quick-number">03</span><span class="quick-icon">⌁</span><div><strong>الردود التلقائية</strong><small>تحكم بالردود المطابقة للكلمات</small></div><b>↗</b></a>
+  <a class="quick-card" href="{{ url_for('commands_page', guild_id=guild.id) }}"><span class="quick-number">04</span><span class="quick-icon">⌘</span><div><strong>مركز الأوامر</strong><small>كل أوامر VoidFlame المتاحة</small></div><b>↗</b></a>
+</section>
 {% endblock %}
