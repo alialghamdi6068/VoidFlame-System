@@ -48,9 +48,9 @@ DATABASE_PATH = Path(os.getenv("DATABASE_PATH", _FILE_CONFIG.get("database_path"
 DATABASE_PATH = DATABASE_PATH if DATABASE_PATH.is_absolute() else BASE_DIR / DATABASE_PATH
 
 try:
-    PORT = int(os.getenv("PORT", os.getenv("SERVER_PORT", _FILE_CONFIG.get("port", "10000"))))
+    PORT = int(os.getenv("PORT", os.getenv("SERVER_PORT", _FILE_CONFIG.get("port", "26583"))))
 except (TypeError, ValueError):
-    PORT = 10000
+    PORT = 26583
 
 HOST = os.getenv("HOST", _FILE_CONFIG.get("host", "0.0.0.0")) or "0.0.0.0"
 
