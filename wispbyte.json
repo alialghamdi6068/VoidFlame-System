@@ -1,6 +1,0 @@
-{
-  "hosting": "Wispbyte",
-  "startCommand": "python bot.py",
-  "port": 10000,
-  "entrypoint": "bot.py"
-}
