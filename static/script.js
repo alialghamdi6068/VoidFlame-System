@@ -97,3 +97,24 @@ markChanged();
 const add=document.getElementById('add-reply');if(add)add.onclick=async()=>{const t=document.getElementById('reply-trigger'),r=document.getElementById('reply-response');if(!t.value.trim()||!r.value.trim())return alert('اكتب الكلمة والرد أولاً.');const d=await save({autoreply_action:'add',trigger:t.value.trim(),response:r.value.trim()});if(d.ok)location.reload();else alert(d.error||'تعذر الإضافة');};
 document.querySelectorAll('.delete-reply').forEach(b=>b.onclick=async()=>{if(!confirm('حذف هذا الرد؟'))return;const d=await save({autoreply_action:'delete',trigger:b.dataset.trigger});if(d.ok)location.reload();else alert(d.error||'تعذر الحذف');});
 });
+
+
+// Dashboard shell interactions: mobile drawer, active navigation, scroll progress and keyboard polish.
+(function initDashboardInteractions(){
+  const sidebar=document.getElementById('sidebar');
+  const menu=document.getElementById('mobile-menu');
+  const overlay=document.getElementById('mobile-overlay');
+  const progress=document.getElementById('scroll-progress');
+  const close=()=>{sidebar?.classList.remove('open');overlay?.classList.remove('open');menu?.setAttribute('aria-expanded','false');document.body.classList.remove('drawer-open');};
+  const open=()=>{sidebar?.classList.add('open');overlay?.classList.add('open');menu?.setAttribute('aria-expanded','true');document.body.classList.add('drawer-open');};
+  menu?.addEventListener('click',()=>sidebar?.classList.contains('open')?close():open());
+  overlay?.addEventListener('click',close);
+  sidebar?.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{if(window.innerWidth<=900)close();}));
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')close();});
+  const updateProgress=()=>{if(!progress)return;const max=document.documentElement.scrollHeight-window.innerHeight;progress.style.width=(max>0?Math.min(100,window.scrollY/max*100):0)+'%';};
+  window.addEventListener('scroll',updateProgress,{passive:true});window.addEventListener('resize',updateProgress);updateProgress();
+  const path=location.pathname.replace(/\\/$/,'');
+  document.querySelectorAll('.sidebar-nav .nav-item').forEach(a=>{const href=new URL(a.href,location.origin).pathname.replace(/\\/$/,'');if(href===path){a.classList.add('active');a.setAttribute('aria-current','page');}});
+  document.querySelectorAll('.variable-copy').forEach(button=>button.addEventListener('click',async()=>{const value=button.dataset.variable||'';try{await navigator.clipboard.writeText(value);}catch(e){const area=document.createElement('textarea');area.value=value;document.body.appendChild(area);area.select();document.execCommand('copy');area.remove();}const state=button.querySelector('.copy-state');if(state){const old=state.textContent;state.textContent='✓ تم النسخ';setTimeout(()=>{state.textContent=old;},1200);}}));
+  if('IntersectionObserver' in window){document.querySelectorAll('[data-reveal]').forEach(el=>{el.classList.add('reveal-ready');new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting){entry.target.classList.add('revealed');entry.target._observer?.disconnect();}}),{threshold:.08}).observe(el);});}
+})();
