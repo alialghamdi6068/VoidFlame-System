@@ -42,26 +42,32 @@ PUBLIC_URL = _value("PUBLIC_URL").rstrip("/")
 DISCORD_REDIRECT_URI = _value("DISCORD_REDIRECT_URI") or (f"{PUBLIC_URL}/callback" if PUBLIC_URL else "")
 COOKIE_SECURE = _value("COOKIE_SECURE", "false").lower() in {"1", "true", "yes", "on"}
 if PUBLIC_URL.startswith("http://"):
-    # Secure cookies cannot be sent over the current HTTP dashboard URL.
     COOKIE_SECURE = False
 
 DATABASE_PATH = Path(os.getenv("DATABASE_PATH", _FILE_CONFIG.get("database_path", DATA_DIR / "flame.db")))
 DATABASE_PATH = DATABASE_PATH if DATABASE_PATH.is_absolute() else BASE_DIR / DATABASE_PATH
 
-PORT = int(os.getenv("PORT", os.getenv("SERVER_PORT", _FILE_CONFIG.get("port", "10000"))))
-HOST = os.getenv("HOST", _FILE_CONFIG.get("host", "0.0.0.0"))
+try:
+    PORT = int(os.getenv("PORT", os.getenv("SERVER_PORT", _FILE_CONFIG.get("port", "10000"))))
+except (TypeError, ValueError):
+    PORT = 10000
+
+HOST = os.getenv("HOST", _FILE_CONFIG.get("host", "0.0.0.0")) or "0.0.0.0"
 
 BOT_PREFIX = "!"
 BOT_NAME = "VoidFlame System"
 DASHBOARD_NAME = "VoidFlame System"
-OWNER_ID = int(os.getenv("OWNER_ID", _FILE_CONFIG.get("owner_id", "1293157778030071920")))
+
+try:
+    OWNER_ID = int(os.getenv("OWNER_ID", _FILE_CONFIG.get("owner_id", "1293157778030071920")))
+except (TypeError, ValueError):
+    OWNER_ID = 1293157778030071920
+
 SUPPORT_SERVER_URL = "https://discord.gg/jH3vwYJyaB"
-HOSTING_PROVIDER = "Pterodactyl"
+HOSTING_PROVIDER = "Morg Hosting"
 
 
 def _session_secret():
-    # Dashboard OAuth is optional. Persist the generated secret so no SESSION_SECRET
-    # environment variable is required and sessions survive normal restarts.
     configured = _value("SESSION_SECRET")
     if configured:
         return configured
@@ -82,8 +88,6 @@ def _session_secret():
         except OSError:
             pass
     except OSError:
-        # Ephemeral filesystems can still run the bot; the dashboard session will
-        # simply be reset after a restart.
         pass
     return generated
 
@@ -91,7 +95,4 @@ def _session_secret():
 SESSION_SECRET = _session_secret()
 
 if not DISCORD_TOKEN:
-    raise RuntimeError(
-        "Discord token is missing. Set DISCORD_TOKEN or create config.json "
-        "next to bot.py using config.json.example."
-    )
+    raise RuntimeError("Discord token is missing. Set the DISCORD_TOKEN environment variable.")
