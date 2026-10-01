@@ -41,6 +41,9 @@ DISCORD_CLIENT_SECRET = _value("DISCORD_CLIENT_SECRET")
 PUBLIC_URL = _value("PUBLIC_URL").rstrip("/")
 DISCORD_REDIRECT_URI = _value("DISCORD_REDIRECT_URI") or (f"{PUBLIC_URL}/callback" if PUBLIC_URL else "")
 COOKIE_SECURE = _value("COOKIE_SECURE", "false").lower() in {"1", "true", "yes", "on"}
+if PUBLIC_URL.startswith("http://"):
+    # Secure cookies cannot be sent over the current HTTP dashboard URL.
+    COOKIE_SECURE = False
 
 DATABASE_PATH = Path(os.getenv("DATABASE_PATH", _FILE_CONFIG.get("database_path", DATA_DIR / "flame.db")))
 DATABASE_PATH = DATABASE_PATH if DATABASE_PATH.is_absolute() else BASE_DIR / DATABASE_PATH
