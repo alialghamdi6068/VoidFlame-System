@@ -53,7 +53,7 @@ BOT_NAME = "VoidFlame System"
 DASHBOARD_NAME = "VoidFlame System"
 OWNER_ID = int(os.getenv("OWNER_ID", _FILE_CONFIG.get("owner_id", "1293157778030071920")))
 SUPPORT_SERVER_URL = "https://discord.gg/jH3vwYJyaB"
-HOSTING_PROVIDER = "Morg Hosting"
+HOSTING_PROVIDER = "Pterodactyl"
 
 
 def _session_secret():
