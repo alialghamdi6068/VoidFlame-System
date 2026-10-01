@@ -5,7 +5,7 @@ import discord
 from discord.ext import commands
 
 from config import BOT_PREFIX, BOT_NAME, HOST, PORT, DISCORD_TOKEN
-from database import init_db
+from database import init_db, start_database_backups
 from services.settings_cache import settings_cache
 from web.app import create_app
 from cogs.maintenance import is_maintenance
@@ -214,14 +214,21 @@ async def load_cogs():
 
 
 def run_web():
-    app.run(host=HOST, port=PORT, debug=False, use_reloader=False)
+    try:
+        print(f"[{BOT_NAME}] Dashboard starting on http://{HOST}:{PORT}")
+        app.run(host=HOST, port=PORT, debug=False, use_reloader=False, threaded=True)
+    except Exception as exc:
+        print(f"[{BOT_NAME}] Dashboard stopped: {type(exc).__name__}: {exc}")
 
 
 async def main():
     init_db()
+    start_database_backups()
+    # Start the web panel before loading optional cogs so one broken/slow cog
+    # cannot prevent the dashboard from coming online.
+    threading.Thread(target=run_web, daemon=True, name="flame-dashboard").start()
     if not await load_cogs():
         return
-    threading.Thread(target=run_web, daemon=True, name="flame-dashboard").start()
     await bot.start(DISCORD_TOKEN)
 
 
