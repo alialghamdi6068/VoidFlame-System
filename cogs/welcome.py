@@ -46,7 +46,10 @@ class Welcome(commands.Cog):
         try: color = int(str(settings.get("welcome_color", "8B5CF6")).replace("#", ""), 16)
         except ValueError: color = 0x8B5CF6
         embed = discord.Embed(title=title[:256], description=description[:4096], color=color)
-        embed.set_author(name=member.guild.name, icon_url=member.guild.icon.url if member.guild.icon else discord.Embed.Empty)
+        if member.guild.icon:
+            embed.set_author(name=member.guild.name, icon_url=member.guild.icon.url)
+        else:
+            embed.set_author(name=member.guild.name)
         if settings.get("welcome_member_avatar", True):
             embed.set_thumbnail(url=member.display_avatar.url)
         if settings.get("welcome_server_icon", False) and member.guild.icon:
