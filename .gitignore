@@ -8,3 +8,5 @@
 
 config.json
 data/session.secret
+instances/*/config.json
+instances/*/data/
