@@ -117,3 +117,25 @@ python bot.py
 - يجب أن يكون دور البوت أعلى من الرتب التي سيقوم بإعطائها.
 - إعدادات كل سيرفر مستقلة عن السيرفرات الأخرى.
 - لا تضع `DISCORD_TOKEN` أو `DISCORD_CLIENT_SECRET` داخل GitHub.
+
+
+## Four-bot architecture
+
+The same codebase can run four independent bot instances simultaneously. Each instance has its own token, primary server ID, SQLite database, backups and enabled-system state.
+
+Configure instances/bot-1/config.json through instances/bot-4/config.json, then run:
+
+    python run_all.py
+
+Use /systems or /system enable|disable|status|reload inside each server to control systems independently.
+
+The default welcome embed is clean and English:
+
+    Welcome {user} to {server}!
+    You are member {count} 🎉
+
+    📌 Please read the rules
+    💬 Chat & have fun
+    🚀 Enjoy!
+
+The new member's avatar is displayed inside the embed. Welcome channel, title, description, color and avatar display can be changed from Discord.
