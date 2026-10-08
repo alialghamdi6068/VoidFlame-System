@@ -1,0 +1,10 @@
+{
+  "discord_token": "PUT_BOT_TOKEN_HERE",
+  "owner_id": "1293157778030071920",
+  "guild_id": "PUT_SERVER_ID_HERE",
+  "instance_name": "VoidFlame Bot 1",
+  "data_dir": "instances/bot-1/data",
+  "database_path": "instances/bot-1/data/flame.db",
+  "host": "127.0.0.1",
+  "port": 26583
+}
